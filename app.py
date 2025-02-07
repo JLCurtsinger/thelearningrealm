@@ -1,10 +1,12 @@
 from flask import Flask, request, jsonify, send_file
+from flask_cors import CORS
 import os
 import uuid
 import youtube_dl
 from video_translator import translate_video
 
 app = Flask(__name__)
+CORS(app)  # This enables CORS for all routes
 
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
