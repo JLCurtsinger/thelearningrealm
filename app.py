@@ -71,5 +71,10 @@ def translate_video_url():
         if os.path.exists(output_video):
             os.remove(output_video)
 
+# Route 3: route for the root URL
+@app.route('/')
+def index():
+    return "Welcome to the Video Translator API!"
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
