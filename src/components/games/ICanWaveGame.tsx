@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Volume2, Star, Sparkles, XCircle } from 'lucide-react';
+import { Volume2, Star, Sparkles, Play, XCircle } from 'lucide-react';
 import { useGameAudio } from './GameAudioContext';
 
 interface ICanWaveGameProps {
@@ -9,53 +9,49 @@ interface ICanWaveGameProps {
   language: string;
 }
 
-const actions = [
+// Different waving animations
+const WAVE_STYLES = [
   {
-    correct: {
-      id: 'waving',
-      image: 'https://media.giphy.com/media/3o7TKMt1VVNkHV2PaE/giphy.gif',
-      text: { en: 'waving', es: 'saludando' }
-    },
-    incorrect: {
-      id: 'clapping',
-      image: 'https://media.giphy.com/media/3o7qDEq2bMbcbPRQ2c/giphy.gif',
-      text: { en: 'clapping', es: 'aplaudiendo' }
-    }
+    id: 'friendly',
+    armStyle: 'w-8 h-2 bg-yellow-400 rounded-full',
+    animation: 'animate-wave origin-left',
+    position: '-right-4 top-1/2'
   },
   {
-    correct: {
-      id: 'waving2',
-      image: 'https://media.giphy.com/media/3o7TKMt1VVNkHV2PaE/giphy.gif',
-      text: { en: 'waving', es: 'saludando' }
-    },
-    incorrect: {
-      id: 'jumping',
-      image: 'https://media.giphy.com/media/3oKIPavRPgJYaNI97W/giphy.gif',
-      text: { en: 'jumping', es: 'saltando' }
-    }
+    id: 'excited',
+    armStyle: 'w-10 h-2 bg-yellow-400 rounded-full',
+    animation: 'animate-[wave_1s_ease-in-out_infinite]',
+    position: '-right-6 top-1/3'
+  },
+  {
+    id: 'gentle',
+    armStyle: 'w-6 h-2 bg-yellow-400 rounded-full',
+    animation: 'animate-[wave_1.5s_ease-in-out_infinite]',
+    position: '-right-4 top-2/3'
   }
 ];
 
 export function ICanWaveGame({ isDarkMode, isVibrant, onExit, language }: ICanWaveGameProps) {
   const { soundEnabled, toggleSound, playGameSound, speakText } = useGameAudio();
-  const [currentPair, setCurrentPair] = useState(0);
+  const [isStarted, setIsStarted] = useState(false);
   const [score, setScore] = useState(0);
   const [showCelebration, setShowCelebration] = useState(false);
   const [showError, setShowError] = useState(false);
+  const [currentWaveStyle, setCurrentWaveStyle] = useState(0);
 
   useEffect(() => {
-    if (soundEnabled) {
+    if (soundEnabled && !isStarted) {
       speakText(
         language === 'es' 
-          ? '¿Quién está saludando?' 
-          : 'Who is waving?',
+          ? '¿Puedes saludar como yo?' 
+          : 'Can you wave like me?',
         language === 'es' ? 'es-ES' : 'en-US'
       );
     }
-  }, [currentPair]);
+  }, [isStarted]);
 
-  const handleImageClick = (isCorrect: boolean) => {
-    if (isCorrect) {
+  const handleCharacterClick = (isWaving: boolean) => {
+    if (isWaving) {
       playGameSound('success');
 
       if (soundEnabled) {
@@ -69,10 +65,10 @@ export function ICanWaveGame({ isDarkMode, isVibrant, onExit, language }: ICanWa
 
       setScore(score + 1);
       setShowCelebration(true);
-      
       setTimeout(() => {
         setShowCelebration(false);
-        setCurrentPair((prev) => (prev + 1) % actions.length);
+        // Change wave style for next round
+        setCurrentWaveStyle((prev) => (prev + 1) % WAVE_STYLES.length);
       }, 2000);
     } else {
       playGameSound('error');
@@ -89,6 +85,52 @@ export function ICanWaveGame({ isDarkMode, isVibrant, onExit, language }: ICanWa
       setShowError(true);
       setTimeout(() => setShowError(false), 1000);
     }
+  };
+
+  // Animated character component
+  const Character = ({ isWaving = false, onClick }: { isWaving?: boolean; onClick?: () => void }) => {
+    const waveStyle = WAVE_STYLES[currentWaveStyle];
+    
+    return (
+      <button
+        onClick={onClick}
+        className={`
+          relative w-48 h-48
+          transform transition-all duration-300
+          hover:scale-105 focus:outline-none
+        `}
+      >
+        <div className={`
+          absolute inset-0
+          ${isVibrant
+            ? 'bg-gradient-to-b from-purple-500 to-pink-500'
+            : isDarkMode
+              ? 'bg-gray-700'
+              : 'bg-purple-600'
+          }
+          rounded-full
+        `}>
+          {/* Character face */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
+            <div className="flex space-x-4 mb-4">
+              <div className="w-4 h-4 rounded-full bg-white"></div>
+              <div className="w-4 h-4 rounded-full bg-white"></div>
+            </div>
+            <div className="w-8 h-2 bg-white rounded-full"></div>
+
+            {/* Waving arm with dynamic style */}
+            {isWaving && (
+              <div className={`absolute ${waveStyle.position}`}>
+                <div className={`
+                  ${waveStyle.armStyle}
+                  ${waveStyle.animation}
+                `} />
+              </div>
+            )}
+          </div>
+        </div>
+      </button>
+    );
   };
 
   return (
@@ -124,37 +166,59 @@ export function ICanWaveGame({ isDarkMode, isVibrant, onExit, language }: ICanWa
           ${isDarkMode ? 'bg-gray-800' : 'bg-white'}
           shadow-xl
         `}>
-          {/* Question */}
-          <h2 className={`
-            text-2xl font-bold text-center mb-8
-            ${isDarkMode ? 'text-white' : 'text-gray-900'}
-          `}>
-            {language === 'es' ? '¿Quién está saludando?' : 'Who is waving?'}
-          </h2>
+          {!isStarted ? (
+            // Title Screen
+            <div className="flex flex-col items-center space-y-8">
+              <h1 className={`
+                text-4xl font-bold text-center
+                ${isDarkMode ? 'text-white' : 'text-gray-900'}
+              `}>
+                {language === 'es' ? '¡Puedo Saludar!' : 'I Can Wave!'}
+              </h1>
 
-          {/* Images Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {[actions[currentPair].correct, actions[currentPair].incorrect]
-              .sort(() => Math.random() - 0.5)
-              .map((action, index) => (
-                <button
-                  key={index}
-                  onClick={() => handleImageClick(action.id.includes('waving'))}
-                  className={`
-                    relative aspect-video rounded-2xl overflow-hidden
-                    transform hover:scale-105 transition-all duration-300
-                    focus:outline-none focus:ring-4 focus:ring-purple-400
-                    shadow-lg
-                  `}
-                >
-                  <img
-                    src={action.image}
-                    alt={action.text[language as keyof typeof action.text]}
-                    className="w-full h-full object-cover"
-                  />
-                </button>
-            ))}
-          </div>
+              <Character isWaving={true} />
+
+              <button
+                onClick={() => setIsStarted(true)}
+                className={`
+                  px-8 py-4 rounded-xl
+                  flex items-center gap-2
+                  font-bold text-white
+                  transform hover:scale-105
+                  transition-all duration-300
+                  ${isVibrant
+                    ? 'bg-gradient-to-r from-purple-500 via-pink-500 to-red-500'
+                    : 'bg-purple-600 hover:bg-purple-700'
+                  }
+                `}
+              >
+                <Play className="w-6 h-6" />
+                <span>{language === 'es' ? 'Comenzar' : 'Start'}</span>
+              </button>
+            </div>
+          ) : (
+            // Game Screen
+            <>
+              <h2 className={`
+                text-2xl font-bold text-center mb-12
+                ${isDarkMode ? 'text-white' : 'text-gray-900'}
+              `}>
+                {language === 'es' ? '¿Quién está saludando?' : 'Who is waving?'}
+              </h2>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-12 justify-items-center">
+                {[true, false]
+                  .sort(() => Math.random() - 0.5)
+                  .map((isWaving, index) => (
+                    <Character
+                      key={index}
+                      isWaving={isWaving}
+                      onClick={() => handleCharacterClick(isWaving)}
+                    />
+                  ))}
+              </div>
+            </>
+          )}
 
           {/* Celebration Overlay */}
           {showCelebration && (
