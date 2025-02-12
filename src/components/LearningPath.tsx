@@ -13,13 +13,12 @@ import { EmotionMatchGame } from './games/EmotionMatchGame';
 import { ChatWithGPTGame } from './games/ChatWithGPTGame';
 import { WhatAmIWearingGame } from './games/WhatAmIWearingGame';
 import { WheresMyToyGame } from './games/WheresMyToyGame';
-
-interface LearningPathProps {
-  isDarkMode: boolean;
-  isVibrant: boolean;
-  t: any;
-  language: string;
-}
+import { ICanMoveGame } from './games/ICanMoveGame';
+import { ICanWaveGame } from './games/ICanWaveGame';
+import { ICanJumpGame } from './games/ICanJumpGame';
+import { ICanClapGame } from './games/ICanClapGame';
+import { ICanStompGame } from './games/ICanStompGame';
+import { ICanDoItAllGame } from './games/ICanDoItAllGame';
 
 // Avatar configurations for each game
 const GAME_AVATARS: Record<string, string> = {
@@ -32,7 +31,13 @@ const GAME_AVATARS: Record<string, string> = {
   'emotionmatch': 'happy&backgroundColor=transparent&eyes=variant02&mouth=variant02&hair=long10',
   'chatwithgpt': 'chat&backgroundColor=transparent&eyes=variant01&mouth=variant01&hair=long09',
   'whatamiwearing': 'fashion&backgroundColor=transparent&eyes=variant08&mouth=variant08&hair=long08',
-  'wheresmytoy': 'explorer&backgroundColor=transparent&eyes=variant10&mouth=variant10&hair=long07'
+  'wheresmytoy': 'explorer&backgroundColor=transparent&eyes=variant10&mouth=variant10&hair=long07',
+  'icanmove': 'runner&backgroundColor=transparent&eyes=variant11&mouth=variant11&hair=long06',
+  'icanwave': 'friendly&backgroundColor=transparent&eyes=variant12&mouth=variant12&hair=long05',
+  'icanjump': 'jumper&backgroundColor=transparent&eyes=variant13&mouth=variant13&hair=long04',
+  'icanclap': 'musical&backgroundColor=transparent&eyes=variant14&mouth=variant14&hair=long03',
+  'icanstomp': 'dancer&backgroundColor=transparent&eyes=variant15&mouth=variant15&hair=long02',
+  'icandoitall': 'superhero&backgroundColor=transparent&eyes=variant16&mouth=variant16&hair=long01'
 };
 
 // Default games for users without placement test results
@@ -57,7 +62,33 @@ const DEFAULT_LESSONS: Lesson[] = [
   }
 ];
 
-// Map component names to actual components
+// Helper function to format game titles
+const formatGameTitle = (gameId: string): string => {
+  const titles: Record<string, string> = {
+    'icanmove': '🏃 I Can Move!',
+    'icanwave': '👋 I Can Wave!',
+    'icanjump': '🦘 I Can Jump!',
+    'icanclap': '👏 I Can Clap!',
+    'icanstomp': '👣 I Can Stomp!',
+    'icandoitall': '🌟 I Can Do It All!'
+  };
+  return titles[gameId] || gameId;
+};
+
+// Helper function to get game descriptions
+const getGameDescription = (gameId: string): string => {
+  const descriptions: Record<string, string> = {
+    'icanmove': 'Learn movement words with interactive actions!',
+    'icanwave': 'Wave hello and learn social interactions!',
+    'icanjump': 'Jump and learn new action words!',
+    'icanclap': 'Clap along to rhythm and phonics!',
+    'icanstomp': 'Stomp around while learning coordination!',
+    'icandoitall': 'Practice all actions in one fun game!'
+  };
+  return descriptions[gameId] || 'A fun learning game!';
+};
+
+// Map component names to actual components with correct case sensitivity
 const GAME_COMPONENTS: Record<string, React.ComponentType<any>> = {
   'CountingGame': CountingGame,
   'LetterMatchingGame': LetterMatchingGame,
@@ -68,7 +99,49 @@ const GAME_COMPONENTS: Record<string, React.ComponentType<any>> = {
   'EmotionMatchGame': EmotionMatchGame,
   'ChatWithGPTGame': ChatWithGPTGame,
   'WhatAmIWearingGame': WhatAmIWearingGame,
-  'WheresMyToyGame': WheresMyToyGame
+  'WheresMyToyGame': WheresMyToyGame,
+  'ICanMoveGame': ICanMoveGame,
+  'ICanWaveGame': ICanWaveGame,
+  'ICanJumpGame': ICanJumpGame,
+  'ICanClapGame': ICanClapGame,
+  'ICanStompGame': ICanStompGame,
+  'ICanDoItAllGame': ICanDoItAllGame
+};
+
+// Helper function to map game IDs to component names with correct case
+const getComponentName = (gameId: string): string => {
+  const componentMappings: Record<string, string> = {
+    'icanmove': 'ICanMoveGame',
+    'icanwave': 'ICanWaveGame',
+    'icanjump': 'ICanJumpGame',
+    'icanclap': 'ICanClapGame',
+    'icanstomp': 'ICanStompGame',
+    'icandoitall': 'ICanDoItAllGame',
+    'chatwithgpt': 'ChatWithGPTGame',
+    'whatamiwearing': 'WhatAmIWearingGame',
+    'wheresmytoy': 'WheresMyToyGame',
+    'counting': 'CountingGame',
+    'lettermatching': 'LetterMatchingGame',
+    'findletter': 'FindLetterGame',
+    'phoneticsound': 'PhoneticSoundGame',
+    'wordbuilder': 'WordBuilderGame',
+    'shapesorter': 'ShapeSorterGame',
+    'emotionmatch': 'EmotionMatchGame'
+  };
+  return componentMappings[gameId] || '';
+};
+
+// Helper function to map game IDs to lesson objects
+const mapGameToLesson = (gameId: string, difficultyLevel: string = 'beginner'): Lesson => {
+  return {
+    id: gameId,
+    title: formatGameTitle(gameId),
+    description: getGameDescription(gameId),
+    targetSkills: ['vocabulary', 'observation', 'interaction'],
+    difficultyLevel,
+    icon: gameId,
+    component: getComponentName(gameId) // Use the correct case-sensitive component name
+  };
 };
 
 export function LearningPath({ isDarkMode, isVibrant, t, language }: LearningPathProps) {
@@ -79,12 +152,29 @@ export function LearningPath({ isDarkMode, isVibrant, t, language }: LearningPat
 
   useEffect(() => {
     const loadRecommendedLessons = async () => {
+      console.log("🔄 Starting loadRecommendedLessons...");
+      console.log("👤 Current user:", user?.uid);
+
       if (user) {
         const result = await getPlacementTestResult(user.uid);
-        if (result?.lessons) {
-          setDisplayedLessons(result.lessons.slice(0, 2));
+        console.log("✅ Retrieved Placement Test Result:", result);
+
+        if (result?.recommendedGames && Array.isArray(result.recommendedGames)) {
+          console.log("🎮 Recommended Games:", result.recommendedGames);
+          
+          // Map game IDs to full lesson objects
+          const mappedLessons = result.recommendedGames
+            .map(gameId => mapGameToLesson(gameId, result.difficultyLevel))
+            .slice(0, 2);
+
+          console.log("📚 Mapped Lessons:", mappedLessons);
+          setDisplayedLessons(mappedLessons);
+        } else {
+          console.log("⚠️ No valid recommended games found, using default lessons");
+          setDisplayedLessons(DEFAULT_LESSONS);
         }
       } else {
+        console.log("ℹ️ No user logged in, using default lessons");
         setDisplayedLessons(DEFAULT_LESSONS);
       }
     };
@@ -92,25 +182,42 @@ export function LearningPath({ isDarkMode, isVibrant, t, language }: LearningPat
     loadRecommendedLessons();
   }, [user]);
 
-  const handlePlacementTestComplete = (result: { lessons: Lesson[] }) => {
-    setDisplayedLessons(result.lessons.slice(0, 2));
+  const handlePlacementTestComplete = (result: { recommendedGames: string[] }) => {
+    console.log("🎉 Placement Test Completed");
+    console.log("📝 Full result object:", result);
+    
+    if (result?.recommendedGames && Array.isArray(result.recommendedGames)) {
+      const mappedLessons = result.recommendedGames
+        .map(gameId => mapGameToLesson(gameId))
+        .slice(0, 2);
+      
+      console.log("✨ Mapped lessons for display:", mappedLessons);
+      setDisplayedLessons(mappedLessons);
+    } else {
+      console.error("❌ Invalid recommended games array:", result?.recommendedGames);
+      setDisplayedLessons(DEFAULT_LESSONS);
+    }
+    
     setShowPlacementTest(false);
   };
 
   if (activeGame) {
     const selectedLesson = displayedLessons.find(lesson => lesson.id === activeGame);
-    if (selectedLesson?.component) {
+    console.log("🎮 Selected game:", activeGame);
+    console.log("📋 Selected lesson:", selectedLesson);
+    console.log("🎯 Component name:", selectedLesson?.component);
+    console.log("🔍 Available components:", Object.keys(GAME_COMPONENTS));
+    
+    if (selectedLesson?.component && GAME_COMPONENTS[selectedLesson.component]) {
       const GameComponent = GAME_COMPONENTS[selectedLesson.component];
-      if (GameComponent) {
-        return (
-          <GameComponent
-            isDarkMode={isDarkMode}
-            isVibrant={isVibrant}
-            onExit={() => setActiveGame(null)}
-            language={language}
-          />
-        );
-      }
+      return (
+        <GameComponent
+          isDarkMode={isDarkMode}
+          isVibrant={isVibrant}
+          onExit={() => setActiveGame(null)}
+          language={language}
+        />
+      );
     }
   }
 
