@@ -84,19 +84,19 @@ const GAME_COMPONENTS: Record<string, React.ComponentType<any>> = {
 };
 
 // Helper function to map AI recommendations to lessons
-const mapRecommendedGamesToLessons = (
-  recommendedGames: string[],
+const mapAILessonsToLocalGames = (
+  aiLessons: Lesson[],
   difficultyLevel: string = 'beginner'
 ): Lesson[] => {
-  console.log("🎯 Starting to map recommended games to lessons");
-  console.log("📥 Input game IDs:", recommendedGames);
+  console.log("🎯 Starting to map AI lessons to local games");
+  console.log("📥 Input lessons:", aiLessons);
   console.log("🎮 Available local games:", games.map(g => g.id));
 
   const validLessons: Lesson[] = [];
 
-  for (const gameId of recommendedGames) {
-    const normalizedId = gameId.trim().toLowerCase();
-    console.log("\n🔍 Processing game ID:", JSON.stringify(gameId));
+  for (const lesson of aiLessons) {
+    const normalizedId = lesson.id.trim().toLowerCase();
+    console.log("\n🔍 Processing lesson ID:", JSON.stringify(lesson.id));
     console.log("🔄 Normalized ID:", JSON.stringify(normalizedId));
 
     const gameData = games.find(g => g.id === normalizedId);
@@ -124,7 +124,7 @@ const mapRecommendedGamesToLessons = (
   }
 
   console.log("\n📊 Mapping Results:");
-  console.log(`- Total recommendations: ${recommendedGames.length}`);
+  console.log(`- Total AI lessons: ${aiLessons.length}`);
   console.log(`- Valid matches found: ${validLessons.length}`);
   console.log("📚 Final valid lessons:", validLessons);
 
@@ -146,9 +146,9 @@ export function LearningPath({ isDarkMode, isVibrant, t, language }: LearningPat
         const result = await getPlacementTestResult(user.uid);
         console.log("✅ Retrieved Placement Test Result:", result);
 
-        if (result?.recommendedGames && Array.isArray(result.recommendedGames)) {
-          const mappedLessons = mapRecommendedGamesToLessons(
-            result.recommendedGames,
+        if (result?.lessons && Array.isArray(result.lessons)) {
+          const mappedLessons = mapAILessonsToLocalGames(
+            result.lessons,
             result.difficultyLevel
           ).slice(0, 2);
 
@@ -160,7 +160,7 @@ export function LearningPath({ isDarkMode, isVibrant, t, language }: LearningPat
             setDisplayedLessons(mappedLessons);
           }
         } else {
-          console.log("ℹ️ No valid recommended games array, using defaults");
+          console.log("ℹ️ No valid lessons array, using defaults");
           setDisplayedLessons(DEFAULT_LESSONS);
         }
       } else {
@@ -172,13 +172,13 @@ export function LearningPath({ isDarkMode, isVibrant, t, language }: LearningPat
     loadRecommendedLessons();
   }, [user]);
 
-  const handlePlacementTestComplete = (result: { recommendedGames: string[] }) => {
+  const handlePlacementTestComplete = (result: { lessons: Lesson[] }) => {
     console.log("🎉 Placement Test Completed");
     console.log("📝 Full result object:", result);
     
-    if (result?.recommendedGames && Array.isArray(result.recommendedGames)) {
-      const mappedLessons = mapRecommendedGamesToLessons(
-        result.recommendedGames
+    if (result?.lessons && Array.isArray(result.lessons)) {
+      const mappedLessons = mapAILessonsToLocalGames(
+        result.lessons
       ).slice(0, 2);
 
       if (mappedLessons.length === 0) {
@@ -189,7 +189,7 @@ export function LearningPath({ isDarkMode, isVibrant, t, language }: LearningPat
         setDisplayedLessons(mappedLessons);
       }
     } else {
-      console.error("❌ Invalid recommended games array:", result?.recommendedGames);
+      console.error("❌ Invalid lessons array:", result?.lessons);
       setDisplayedLessons(DEFAULT_LESSONS);
     }
     
