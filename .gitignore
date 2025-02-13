@@ -32,3 +32,9 @@ __pycache__/
 *.pyc
 *.pyo
 .DS_Store
+
+# Ignore root level files for Heroku and Netlify functions
+/video-translator-backend
+/Procfile
+/app.py
+/requirements.txt
