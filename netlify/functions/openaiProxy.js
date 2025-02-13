@@ -40,7 +40,25 @@ exports.handler = async (event) => {
         messages: [
           {
             role: "system",
-            content: "You are an expert early childhood education AI assistant. Your responses must be in valid JSON format only, with no additional text or explanation."
+            content: `You are an AI that must respond in valid JSON only, with this exact structure:
+{
+  "chatResponse": "some text",
+  "lessons": [
+    {
+      "id": "game-id",
+      "title": "string",
+      "description": "string",
+      "targetSkills": ["string"],
+      "difficultyLevel": "beginner|intermediate|advanced",
+      "icon": "string",
+      "component": "string"
+    },
+    {
+      "... second lesson ..."
+    }
+  ]
+}
+Provide exactly 2 lessons, no extra keys or text outside the JSON.`
           },
           {
             role: "user",
@@ -78,61 +96,101 @@ exports.handler = async (event) => {
       result = JSON.parse(cleanContent);
       console.log('Parsed result:', result);
 
-      // Validate response structure
+      // Validate response structure and provide fallback if invalid
       if (!result.chatResponse || !Array.isArray(result.lessons)) {
-        throw new Error('Invalid response structure');
+        console.warn("Response schema invalid, using fallback.");
+        result = {
+          chatResponse: "We're sorry, but we couldn't process your request right now. Please try again later.",
+          lessons: [
+            {
+              id: "lettermatching",
+              title: "Letter Matching",
+              description: "Match letters with pictures that start with that letter",
+              targetSkills: ["letters", "phonics", "letter-sound-correspondence", "vocabulary"],
+              difficultyLevel: "beginner",
+              icon: "lettermatching",
+              component: "LetterMatchingGame"
+            },
+            {
+              id: "counting",
+              title: "Counting Adventure",
+              description: "Learn to count objects and recognize numbers",
+              targetSkills: ["numbers", "counting", "quantity-recognition", "decision-making"],
+              difficultyLevel: "beginner",
+              icon: "counting",
+              component: "CountingGame"
+            }
+          ]
+        };
+      } else {
+        // Validate number of lessons
+        if (result.lessons.length !== 2) {
+          console.warn("Invalid number of lessons, using fallback");
+          throw new Error('Response must contain exactly 2 lessons');
+        }
+
+        // Validate each lesson
+        const validGameIds = [
+          'findletter', 'lettermatching', 'phoneticsound', 'wordbuilder',
+          'counting', 'shapesorter', 'emotionmatch', 'chatwithgpt',
+          'whatamiwearing', 'wheresmytoy'
+        ];
+
+        const validDifficulties = ['beginner', 'intermediate', 'advanced'];
+
+        result.lessons.forEach(lesson => {
+          // Check required fields
+          if (!lesson.id || !lesson.title || !lesson.description || 
+              !Array.isArray(lesson.targetSkills) || !lesson.difficultyLevel || 
+              !lesson.component) {
+            throw new Error('Invalid lesson structure');
+          }
+
+          // Validate game ID
+          if (!validGameIds.includes(lesson.id)) {
+            throw new Error(`Invalid game ID: ${lesson.id}`);
+          }
+
+          // Validate difficulty level
+          if (!validDifficulties.includes(lesson.difficultyLevel)) {
+            throw new Error(`Invalid difficulty level: ${lesson.difficultyLevel}`);
+          }
+
+          // Ensure component name matches convention
+          const expectedComponent = lesson.id.split('-')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join('') + 'Game';
+          lesson.component = expectedComponent;
+        });
       }
-
-      // Validate number of lessons
-      if (result.lessons.length !== 2) {
-        throw new Error('Response must contain exactly 2 lessons');
-      }
-
-      // Validate each lesson
-      const validGameIds = [
-        'findletter', 'lettermatching', 'phoneticsound', 'wordbuilder',
-        'counting', 'shapesorter', 'emotionmatch', 'chatwithgpt',
-        'whatamiwearing', 'wheresmytoy'
-      ];
-
-      const validDifficulties = ['beginner', 'intermediate', 'advanced'];
-
-      result.lessons.forEach(lesson => {
-        // Check required fields
-        if (!lesson.id || !lesson.title || !lesson.description || 
-            !Array.isArray(lesson.targetSkills) || !lesson.difficultyLevel || 
-            !lesson.component) {
-          throw new Error('Invalid lesson structure');
-        }
-
-        // Validate game ID
-        if (!validGameIds.includes(lesson.id)) {
-          throw new Error(`Invalid game ID: ${lesson.id}`);
-        }
-
-        // Validate difficulty level
-        if (!validDifficulties.includes(lesson.difficultyLevel)) {
-          throw new Error(`Invalid difficulty level: ${lesson.difficultyLevel}`);
-        }
-
-        // Ensure component name matches convention
-        const expectedComponent = lesson.id.split('-')
-          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-          .join('') + 'Game';
-        lesson.component = expectedComponent;
-      });
 
       console.log('Validation passed, returning result');
 
     } catch (parseError) {
       console.error("JSON Parsing Error:", parseError, "Response:", data);
-      return {
-        statusCode: 500,
-        body: JSON.stringify({ 
-          error: "Invalid JSON response from OpenAI",
-          details: parseError.message,
-          rawResponse: data.choices[0].message.content
-        }),
+      // Provide fallback response
+      result = {
+        chatResponse: "We're sorry, but we couldn't process your request right now. Please try again later.",
+        lessons: [
+          {
+            id: "lettermatching",
+            title: "Letter Matching",
+            description: "Match letters with pictures that start with that letter",
+            targetSkills: ["letters", "phonics", "letter-sound-correspondence", "vocabulary"],
+            difficultyLevel: "beginner",
+            icon: "lettermatching",
+            component: "LetterMatchingGame"
+          },
+          {
+            id: "counting",
+            title: "Counting Adventure",
+            description: "Learn to count objects and recognize numbers",
+            targetSkills: ["numbers", "counting", "quantity-recognition", "decision-making"],
+            difficultyLevel: "beginner",
+            icon: "counting",
+            component: "CountingGame"
+          }
+        ]
       };
     }
 
