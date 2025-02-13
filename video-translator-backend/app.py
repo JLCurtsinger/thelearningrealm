@@ -10,8 +10,10 @@ CORS(app,
      resources={r"/*": {
          "origins": ["https://lessonlink.org"],
          "methods": ["GET", "POST", "OPTIONS"],
-         "allow_headers": ["Content-Type"],
-         "supports_credentials": True
+         "allow_headers": ["Content-Type", "Authorization"],
+         "expose_headers": ["Content-Type", "Content-Disposition"],
+         "supports_credentials": True,
+         "max_age": 600  # Cache preflight requests for 10 minutes
      }})
 
 UPLOAD_FOLDER = "uploads"
