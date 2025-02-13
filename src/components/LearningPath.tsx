@@ -164,7 +164,15 @@ export function LearningPath({ isDarkMode, isVibrant, t, language }: LearningPat
           
           // Map game IDs to full lesson objects
           const mappedLessons = result.recommendedGames
-            .map(gameId => mapGameToLesson(gameId, result.difficultyLevel))
+            .map(gameId => {
+              console.log("🔍 Processing game ID:", gameId);
+              const lesson = mapGameToLesson(gameId, result.difficultyLevel);
+              console.log("📋 Mapped lesson:", lesson);
+              console.log("🎯 Component name:", lesson.component);
+              console.log("✨ Available components:", Object.keys(GAME_COMPONENTS));
+              console.log("🔗 Component exists:", !!GAME_COMPONENTS[lesson.component]);
+              return lesson;
+            })
             .slice(0, 2);
 
           console.log("📚 Mapped Lessons:", mappedLessons);
@@ -188,7 +196,14 @@ export function LearningPath({ isDarkMode, isVibrant, t, language }: LearningPat
     
     if (result?.recommendedGames && Array.isArray(result.recommendedGames)) {
       const mappedLessons = result.recommendedGames
-        .map(gameId => mapGameToLesson(gameId))
+        .map(gameId => {
+          console.log("🔍 Processing recommended game ID:", gameId);
+          const lesson = mapGameToLesson(gameId);
+          console.log("📋 Mapped to lesson:", lesson);
+          console.log("🎯 Component name:", lesson.component);
+          console.log("🔗 Component exists:", !!GAME_COMPONENTS[lesson.component]);
+          return lesson;
+        })
         .slice(0, 2);
       
       console.log("✨ Mapped lessons for display:", mappedLessons);
