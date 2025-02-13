@@ -40,25 +40,20 @@ exports.handler = async (event) => {
         messages: [
           {
             role: "system",
-            content: `You are an AI that must respond in valid JSON only, with this exact structure:
+            content: `You must respond with valid JSON matching this exact structure:
 {
-  "chatResponse": "some text",
+  "chatResponse": "string",
   "lessons": [
-    {
-      "id": "game-id",
-      "title": "string",
-      "description": "string",
-      "targetSkills": ["string"],
-      "difficultyLevel": "beginner|intermediate|advanced",
-      "icon": "string",
-      "component": "string"
-    },
-    {
-      "... second lesson ..."
-    }
+    {"id":"game-id","title":"string","description":"string","targetSkills":["string"],"difficultyLevel":"beginner|intermediate|advanced","icon":"string","component":"string"},
+    {"id":"game-id","title":"string","description":"string","targetSkills":["string"],"difficultyLevel":"beginner|intermediate|advanced","icon":"string","component":"string"}
   ]
 }
-Provide exactly 2 lessons, no extra keys or text outside the JSON.`
+CRITICAL RULES:
+- Exactly 2 lessons, no more, no less
+- No extra keys or text outside JSON
+- Valid game IDs only: findletter, lettermatching, phoneticsound, wordbuilder, counting, shapesorter, emotionmatch, chatwithgpt, whatamiwearing, wheresmytoy
+- Valid difficulty levels only: beginner, intermediate, advanced
+Any violation makes the response invalid.`
           },
           {
             role: "user",
@@ -89,85 +84,100 @@ Provide exactly 2 lessons, no extra keys or text outside the JSON.`
       // Clean and parse the response
       const content = data.choices[0].message.content;
       console.log('Raw content from OpenAI:', content);
+      console.warn('Attempting to parse AI response. Content length:', content.length);
       
       const cleanContent = content.replace(/```json\n?|\n?```/g, '').trim();
       console.log('Cleaned content:', cleanContent);
+      console.warn('Content after cleaning. Length:', cleanContent.length);
       
       result = JSON.parse(cleanContent);
       console.log('Parsed result:', result);
+      console.warn('Successfully parsed JSON. Starting validation...');
 
       // Validate response structure and provide fallback if invalid
-      if (!result.chatResponse || !Array.isArray(result.lessons)) {
-        console.warn("Response schema invalid, using fallback.");
-        result = {
-          chatResponse: "We're sorry, but we couldn't process your request right now. Please try again later.",
-          lessons: [
-            {
-              id: "lettermatching",
-              title: "Letter Matching",
-              description: "Match letters with pictures that start with that letter",
-              targetSkills: ["letters", "phonics", "letter-sound-correspondence", "vocabulary"],
-              difficultyLevel: "beginner",
-              icon: "lettermatching",
-              component: "LetterMatchingGame"
-            },
-            {
-              id: "counting",
-              title: "Counting Adventure",
-              description: "Learn to count objects and recognize numbers",
-              targetSkills: ["numbers", "counting", "quantity-recognition", "decision-making"],
-              difficultyLevel: "beginner",
-              icon: "counting",
-              component: "CountingGame"
-            }
-          ]
-        };
-      } else {
-        // Validate number of lessons
-        if (result.lessons.length !== 2) {
-          console.warn("Invalid number of lessons, using fallback");
-          throw new Error('Response must contain exactly 2 lessons');
-        }
-
-        // Validate each lesson
-        const validGameIds = [
-          'findletter', 'lettermatching', 'phoneticsound', 'wordbuilder',
-          'counting', 'shapesorter', 'emotionmatch', 'chatwithgpt',
-          'whatamiwearing', 'wheresmytoy'
-        ];
-
-        const validDifficulties = ['beginner', 'intermediate', 'advanced'];
-
-        result.lessons.forEach(lesson => {
-          // Check required fields
-          if (!lesson.id || !lesson.title || !lesson.description || 
-              !Array.isArray(lesson.targetSkills) || !lesson.difficultyLevel || 
-              !lesson.component) {
-            throw new Error('Invalid lesson structure');
-          }
-
-          // Validate game ID
-          if (!validGameIds.includes(lesson.id)) {
-            throw new Error(`Invalid game ID: ${lesson.id}`);
-          }
-
-          // Validate difficulty level
-          if (!validDifficulties.includes(lesson.difficultyLevel)) {
-            throw new Error(`Invalid difficulty level: ${lesson.difficultyLevel}`);
-          }
-
-          // Ensure component name matches convention
-          const expectedComponent = lesson.id.split('-')
-            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-            .join('') + 'Game';
-          lesson.component = expectedComponent;
-        });
+      if (!result.chatResponse) {
+        console.warn('Fallback triggered: Missing chatResponse field');
+        console.warn('Received structure:', Object.keys(result).join(', '));
+        throw new Error('Missing chatResponse field');
       }
 
-      console.log('Validation passed, returning result');
+      if (!Array.isArray(result.lessons)) {
+        console.warn('Fallback triggered: lessons is not an array');
+        console.warn('Lessons type:', typeof result.lessons);
+        throw new Error('lessons must be an array');
+      }
+
+      // Validate number of lessons
+      if (result.lessons.length !== 2) {
+        console.warn('Fallback triggered: Wrong number of lessons');
+        console.warn('Found lessons:', result.lessons.length);
+        throw new Error('Response must contain exactly 2 lessons');
+      }
+
+      // Validate each lesson
+      const validGameIds = [
+        'findletter', 'lettermatching', 'phoneticsound', 'wordbuilder',
+        'counting', 'shapesorter', 'emotionmatch', 'chatwithgpt',
+        'whatamiwearing', 'wheresmytoy'
+      ];
+
+      const validDifficulties = ['beginner', 'intermediate', 'advanced'];
+
+      result.lessons.forEach((lesson, index) => {
+        console.warn(`Validating lesson ${index + 1}...`);
+        
+        // Check required fields
+        const requiredFields = ['id', 'title', 'description', 'targetSkills', 'difficultyLevel', 'component'];
+        const missingFields = requiredFields.filter(field => !lesson[field]);
+        
+        if (missingFields.length > 0) {
+          console.warn('Fallback triggered: Missing required fields in lesson', index + 1);
+          console.warn('Missing fields:', missingFields.join(', '));
+          throw new Error(`Lesson ${index + 1} missing fields: ${missingFields.join(', ')}`);
+        }
+
+        if (!Array.isArray(lesson.targetSkills)) {
+          console.warn('Fallback triggered: targetSkills is not an array in lesson', index + 1);
+          console.warn('targetSkills type:', typeof lesson.targetSkills);
+          throw new Error(`Lesson ${index + 1} targetSkills must be an array`);
+        }
+
+        // Validate game ID
+        if (!validGameIds.includes(lesson.id)) {
+          console.warn('Fallback triggered: Invalid game ID in lesson', index + 1);
+          console.warn('Received ID:', lesson.id);
+          console.warn('Valid IDs:', validGameIds.join(', '));
+          throw new Error(`Invalid game ID: ${lesson.id}`);
+        }
+
+        // Validate difficulty level
+        if (!validDifficulties.includes(lesson.difficultyLevel)) {
+          console.warn('Fallback triggered: Invalid difficulty level in lesson', index + 1);
+          console.warn('Received difficulty:', lesson.difficultyLevel);
+          console.warn('Valid difficulties:', validDifficulties.join(', '));
+          throw new Error(`Invalid difficulty level: ${lesson.difficultyLevel}`);
+        }
+
+        // Ensure component name matches convention
+        const expectedComponent = lesson.id.split('-')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .join('') + 'Game';
+        
+        if (lesson.component !== expectedComponent) {
+          console.warn('Fixing component name in lesson', index + 1);
+          console.warn('Original:', lesson.component);
+          console.warn('Fixed to:', expectedComponent);
+          lesson.component = expectedComponent;
+        }
+      });
+
+      console.warn('All validations passed successfully!');
 
     } catch (parseError) {
-      console.error("JSON Parsing Error:", parseError, "Response:", data);
+      console.error("JSON Parsing Error:", parseError);
+      console.warn("Fallback triggered due to:", parseError.message);
+      console.warn("Original AI response:", data.choices[0].message.content);
+      
       // Provide fallback response
       result = {
         chatResponse: "We're sorry, but we couldn't process your request right now. Please try again later.",
