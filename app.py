@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, send_file
-from flask_cors import CORS
+from flask_cors import CORS, cross_origin
 import os
 import uuid
 import youtube_dl
@@ -21,6 +21,7 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # Route 1: File Upload-based Video Translation
 @app.route('/translate-video', methods=['POST'])
+@cross_origin()
 def translate_video_endpoint():
     if 'file' not in request.files:
         return jsonify({"error": "No file part in the request"}), 400
@@ -48,6 +49,7 @@ def translate_video_endpoint():
 
 # Route 2: URL-Based Video Translation
 @app.route("/translate-video-url", methods=["POST"])
+@cross_origin()
 def translate_video_url():
     data = request.json
     video_url = data.get("video_url")
