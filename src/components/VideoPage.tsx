@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Globe2, Youtube, Sparkles } from 'lucide-react';
+import { Globe2, Youtube, Sparkles, Loader2 } from 'lucide-react';
 
 interface VideoPageProps {
   isDarkMode: boolean;
@@ -20,20 +20,71 @@ const YOUTUBE_SHORTS = [
   { id: 'yY-mdm_vUsU', title: 'Transportation Vehicles' }
 ];
 
+const TRANSLATION_API_URL = 'https://lesson-link-translator.herokuapp.com/translate-video-url';
+
 export function VideoPage({ isDarkMode, isVibrant, t }: VideoPageProps) {
   const [selectedVideo, setSelectedVideo] = useState('');
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [translatedVideoUrl, setTranslatedVideoUrl] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  // Function to extract YouTube video ID
-  const getYouTubeVideoId = (url: string) => {
-    return url.trim();
+  // Function to get full YouTube URL from ID
+  const getYouTubeUrl = (id: string) => {
+    return `https://www.youtube.com/shorts/${id}`;
+  };
+
+  // Function to handle video translation
+  const translateVideo = async (videoId: string) => {
+    setIsTranslating(true);
+    setError(null);
+
+    try {
+      const response = await fetch(TRANSLATION_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          video_url: getYouTubeUrl(videoId)
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Translation failed');
+      }
+
+      // Get the blob from the response
+      const videoBlob = await response.blob();
+      const videoUrl = URL.createObjectURL(videoBlob);
+      setTranslatedVideoUrl(videoUrl);
+      setIsPlaying(true);
+
+    } catch (err) {
+      console.error('Translation error:', err);
+      setError('Sorry, there was an error translating the video. Please try again.');
+      setIsPlaying(false);
+    } finally {
+      setIsTranslating(false);
+    }
   };
 
   // Function to handle video selection
-  const handleVideoSelect = (videoId: string) => {
+  const handleVideoSelect = async (videoId: string) => {
+    if (!videoId) return;
+    
     setSelectedVideo(videoId);
-    setIsPlaying(true);
+    await translateVideo(videoId);
   };
+
+  // Cleanup function for blob URLs
+  React.useEffect(() => {
+    return () => {
+      if (translatedVideoUrl) {
+        URL.revokeObjectURL(translatedVideoUrl);
+      }
+    };
+  }, [translatedVideoUrl]);
 
   return (
     <div className="min-h-screen pt-20 pb-8 px-4">
@@ -46,11 +97,12 @@ export function VideoPage({ isDarkMode, isVibrant, t }: VideoPageProps) {
                 <button
                   key={index}
                   onClick={() => handleVideoSelect(video.id)}
+                  disabled={isTranslating}
                   className={`
                     relative overflow-hidden rounded-3xl aspect-video
                     transform hover:scale-102 transition-all duration-500
                     focus:outline-none focus:ring-4 focus:ring-purple-400
-                    group
+                    group disabled:opacity-50 disabled:cursor-not-allowed
                   `}
                 >
                   {/* Gradient Overlay */}
@@ -127,6 +179,7 @@ export function VideoPage({ isDarkMode, isVibrant, t }: VideoPageProps) {
                 <select
                   value={selectedVideo}
                   onChange={(e) => handleVideoSelect(e.target.value)}
+                  disabled={isTranslating}
                   className={`
                     w-full px-6 py-4 text-lg rounded-2xl
                     border-2 border-gray-200 dark:border-gray-700
@@ -136,6 +189,7 @@ export function VideoPage({ isDarkMode, isVibrant, t }: VideoPageProps) {
                     text-gray-900 dark:text-white
                     transition-all duration-300
                     appearance-none
+                    disabled:opacity-50 disabled:cursor-not-allowed
                   `}
                 >
                   <option value="">Click to choose a video</option>
@@ -145,6 +199,19 @@ export function VideoPage({ isDarkMode, isVibrant, t }: VideoPageProps) {
                     </option>
                   ))}
                 </select>
+
+                {/* Translation Status */}
+                {isTranslating && (
+                  <div className="flex items-center justify-center gap-2 text-purple-500">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>Translating video...</span>
+                  </div>
+                )}
+
+                {/* Error Message */}
+                {error && (
+                  <p className="text-red-500 text-center">{error}</p>
+                )}
 
                 {/* Language Note */}
                 <p className={`
@@ -163,13 +230,22 @@ export function VideoPage({ isDarkMode, isVibrant, t }: VideoPageProps) {
             aspect-video rounded-3xl overflow-hidden
             shadow-2xl transition-all duration-500
           `}>
-            <iframe
-              src={`https://www.youtube.com/embed/${getYouTubeVideoId(selectedVideo)}?autoplay=1`}
-              title="YouTube video player"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              className="w-full h-full"
-            />
+            {translatedVideoUrl ? (
+              <video
+                src={translatedVideoUrl}
+                controls
+                autoPlay
+                className="w-full h-full"
+                onError={() => {
+                  setError('Error playing the translated video');
+                  setIsPlaying(false);
+                }}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
+              </div>
+            )}
           </div>
         )}
       </div>
