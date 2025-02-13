@@ -83,6 +83,54 @@ const GAME_COMPONENTS: Record<string, React.ComponentType<any>> = {
   'ICanDoItAllGame': ICanDoItAllGame
 };
 
+// Helper function to map AI recommendations to lessons
+const mapRecommendedGamesToLessons = (
+  recommendedGames: string[],
+  difficultyLevel: string = 'beginner'
+): Lesson[] => {
+  console.log("🎯 Starting to map recommended games to lessons");
+  console.log("📥 Input game IDs:", recommendedGames);
+  console.log("🎮 Available local games:", games.map(g => g.id));
+
+  const validLessons: Lesson[] = [];
+
+  for (const gameId of recommendedGames) {
+    const normalizedId = gameId.trim().toLowerCase();
+    console.log("\n🔍 Processing game ID:", JSON.stringify(gameId));
+    console.log("🔄 Normalized ID:", JSON.stringify(normalizedId));
+
+    const gameData = games.find(g => g.id === normalizedId);
+    
+    if (!gameData) {
+      console.warn("⚠️ No matching game found for ID:", normalizedId);
+      continue;
+    }
+
+    console.log("✨ Found matching game data:", {
+      id: gameData.id,
+      title: gameData.title,
+      component: gameData.component
+    });
+
+    validLessons.push({
+      id: gameData.id,
+      title: gameData.title,
+      description: gameData.description,
+      targetSkills: gameData.skills,
+      difficultyLevel: difficultyLevel || gameData.difficulty,
+      icon: gameData.id,
+      component: gameData.component
+    });
+  }
+
+  console.log("\n📊 Mapping Results:");
+  console.log(`- Total recommendations: ${recommendedGames.length}`);
+  console.log(`- Valid matches found: ${validLessons.length}`);
+  console.log("📚 Final valid lessons:", validLessons);
+
+  return validLessons;
+};
+
 export function LearningPath({ isDarkMode, isVibrant, t, language }: LearningPathProps) {
   const { user } = useAuth();
   const [activeGame, setActiveGame] = useState<string | null>(null);
@@ -99,51 +147,20 @@ export function LearningPath({ isDarkMode, isVibrant, t, language }: LearningPat
         console.log("✅ Retrieved Placement Test Result:", result);
 
         if (result?.recommendedGames && Array.isArray(result.recommendedGames)) {
-          console.log("🎮 Recommended Game IDs:", result.recommendedGames);
-          console.log("🔍 Local game IDs:", games.map(g => g.id));
-          
-          // Map game IDs to local game data
-          const mappedLessons = result.recommendedGames
-            .map(gameId => {
-              const normalizedId = gameId.trim().toLowerCase();
-              console.log("🔍 Looking up game ID:", JSON.stringify(gameId));
-              console.log("🔄 Normalized ID:", JSON.stringify(normalizedId));
-              
-              const gameData = games.find(g => g.id === normalizedId);
-              
-              if (!gameData) {
-                console.warn("⚠️ No matching game found for ID:", normalizedId);
-                return null;
-              }
-
-              console.log("✨ Found game data:", {
-                id: gameData.id,
-                title: gameData.title,
-                component: gameData.component
-              });
-
-              return {
-                id: gameData.id,
-                title: gameData.title,
-                description: gameData.description,
-                targetSkills: gameData.skills,
-                difficultyLevel: result.difficultyLevel || gameData.difficulty,
-                icon: gameData.id,
-                component: gameData.component
-              };
-            })
-            .filter(Boolean)
-            .slice(0, 2);
+          const mappedLessons = mapRecommendedGamesToLessons(
+            result.recommendedGames,
+            result.difficultyLevel
+          ).slice(0, 2);
 
           if (mappedLessons.length === 0) {
-            console.warn("⚠️ No valid games found, using default lessons");
+            console.warn("⚠️ No valid lessons could be created, using defaults");
             setDisplayedLessons(DEFAULT_LESSONS);
           } else {
-            console.log("📚 Using mapped lessons:", mappedLessons);
-            setDisplayedLessons(mappedLessons as Lesson[]);
+            console.log("✅ Using mapped lessons:", mappedLessons);
+            setDisplayedLessons(mappedLessons);
           }
         } else {
-          console.log("ℹ️ No valid recommended games found, using default lessons");
+          console.log("ℹ️ No valid recommended games array, using defaults");
           setDisplayedLessons(DEFAULT_LESSONS);
         }
       } else {
@@ -158,48 +175,18 @@ export function LearningPath({ isDarkMode, isVibrant, t, language }: LearningPat
   const handlePlacementTestComplete = (result: { recommendedGames: string[] }) => {
     console.log("🎉 Placement Test Completed");
     console.log("📝 Full result object:", result);
-    console.log("🔍 Local game IDs:", games.map(g => g.id));
     
     if (result?.recommendedGames && Array.isArray(result.recommendedGames)) {
-      // Map recommended game IDs to local game data
-      const mappedLessons = result.recommendedGames
-        .map(gameId => {
-          const normalizedId = gameId.trim().toLowerCase();
-          console.log("🔍 Looking up game ID:", JSON.stringify(gameId));
-          console.log("🔄 Normalized ID:", JSON.stringify(normalizedId));
-          
-          const gameData = games.find(g => g.id === normalizedId);
-          
-          if (!gameData) {
-            console.warn("⚠️ No matching game found for ID:", normalizedId);
-            return null;
-          }
-
-          console.log("✨ Found game data:", {
-            id: gameData.id,
-            title: gameData.title,
-            component: gameData.component
-          });
-
-          return {
-            id: gameData.id,
-            title: gameData.title,
-            description: gameData.description,
-            targetSkills: gameData.skills,
-            difficultyLevel: 'beginner',
-            icon: gameData.id,
-            component: gameData.component
-          };
-        })
-        .filter(Boolean)
-        .slice(0, 2);
+      const mappedLessons = mapRecommendedGamesToLessons(
+        result.recommendedGames
+      ).slice(0, 2);
 
       if (mappedLessons.length === 0) {
-        console.warn("⚠️ No valid games found after placement test, using default lessons");
+        console.warn("⚠️ No valid lessons could be created after placement test");
         setDisplayedLessons(DEFAULT_LESSONS);
       } else {
-        console.log("📚 Using mapped lessons from placement test:", mappedLessons);
-        setDisplayedLessons(mappedLessons as Lesson[]);
+        console.log("✅ Using mapped lessons from placement test:", mappedLessons);
+        setDisplayedLessons(mappedLessons);
       }
     } else {
       console.error("❌ Invalid recommended games array:", result?.recommendedGames);
