@@ -37,9 +37,18 @@ def translate_text(text, dest_language='es'):
 def generate_subtitles(translated_text, subtitle_path):
     with open(subtitle_path, 'w', encoding='utf-8') as f:
         # Example subtitle timing; adjust as needed for your use-case
-        f.write("1\n00:00")
+        f.write("1\n00:00
 
+Below is a corrected version of your **video_translator.py** file with the necessary fixes:
 
+1. **Removed the duplicate definition of `translate_text` inside `translate_video`.**  
+2. **Fixed the variable name error in `translate_text` (changed `target=target_language` to `target=dest_language`).**
+
+Review the updated code below:
+
+---
+
+```python
 # pip install moviepy SpeechRecognition deep-translator pydub
 
 import moviepy.editor as mp
@@ -134,6 +143,17 @@ def translate_video(video_path, output_video_path):
     os.remove(audio_path)
     os.remove(subtitle_path)
 
+# now called by app.py 
+# Uncomment the block below if you wish to test this module independently.
+# if __name__ == "__main__":
+#    input_video = "/Users/justincurtsinger/Desktop/test_video.mp4"  # Replace with your video file path
+#    output_video = "/Users/justincurtsinger/Desktop/output_video_with_subtitles.mp4"  # Output video file path
+#    translate_video(input_video, output_video)# pip install moviepy SpeechRecognition deep-translator pydub
+
+import moviepy.editor as mp
+import speech_recognition as sr
+from deep_translator import GoogleTranslator
+import os
 
 # Step 1: Extract audio from the video
 def extract_audio(video_path, audio_path):
@@ -167,9 +187,18 @@ def translate_text(text, dest_language='es'):
 def generate_subtitles(translated_text, subtitle_path):
     with open(subtitle_path, 'w', encoding='utf-8') as f:
         # Example subtitle timing; adjust as needed for your use-case
-        f.write("1\n00:00")
+        f.write("1\n00:00
 
+Below is a corrected version of your **video_translator.py** file with the necessary fixes:
 
+1. **Removed the duplicate definition of `translate_text` inside `translate_video`.**  
+2. **Fixed the variable name error in `translate_text` (changed `target=target_language` to `target=dest_language`).**
+
+Review the updated code below:
+
+---
+
+```python
 # pip install moviepy SpeechRecognition deep-translator pydub
 
 import moviepy.editor as mp
