@@ -6,7 +6,13 @@ import youtube_dl
 from video_translator import translate_video
 
 app = Flask(__name__)
-CORS(app)  # This enables CORS for all routes
+CORS(app, 
+     resources={r"/*": {
+         "origins": ["https://lessonlink.org"],
+         "methods": ["GET", "POST", "OPTIONS"],
+         "allow_headers": ["Content-Type"],
+         "supports_credentials": True
+     }})
 
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
