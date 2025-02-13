@@ -100,15 +100,19 @@ export function LearningPath({ isDarkMode, isVibrant, t, language }: LearningPat
 
         if (result?.recommendedGames && Array.isArray(result.recommendedGames)) {
           console.log("🎮 Recommended Game IDs:", result.recommendedGames);
+          console.log("🔍 Local game IDs:", games.map(g => g.id));
           
           // Map game IDs to local game data
           const mappedLessons = result.recommendedGames
             .map(gameId => {
-              console.log("🔍 Looking up game ID:", gameId);
-              const gameData = games.find(g => g.id === gameId);
+              const normalizedId = gameId.trim().toLowerCase();
+              console.log("🔍 Looking up game ID:", JSON.stringify(gameId));
+              console.log("🔄 Normalized ID:", JSON.stringify(normalizedId));
+              
+              const gameData = games.find(g => g.id === normalizedId);
               
               if (!gameData) {
-                console.warn("⚠️ No matching game found for ID:", gameId);
+                console.warn("⚠️ No matching game found for ID:", normalizedId);
                 return null;
               }
 
@@ -154,16 +158,20 @@ export function LearningPath({ isDarkMode, isVibrant, t, language }: LearningPat
   const handlePlacementTestComplete = (result: { recommendedGames: string[] }) => {
     console.log("🎉 Placement Test Completed");
     console.log("📝 Full result object:", result);
+    console.log("🔍 Local game IDs:", games.map(g => g.id));
     
     if (result?.recommendedGames && Array.isArray(result.recommendedGames)) {
       // Map recommended game IDs to local game data
       const mappedLessons = result.recommendedGames
         .map(gameId => {
-          console.log("🔍 Looking up game ID:", gameId);
-          const gameData = games.find(g => g.id === gameId);
+          const normalizedId = gameId.trim().toLowerCase();
+          console.log("🔍 Looking up game ID:", JSON.stringify(gameId));
+          console.log("🔄 Normalized ID:", JSON.stringify(normalizedId));
+          
+          const gameData = games.find(g => g.id === normalizedId);
           
           if (!gameData) {
-            console.warn("⚠️ No matching game found for ID:", gameId);
+            console.warn("⚠️ No matching game found for ID:", normalizedId);
             return null;
           }
 
