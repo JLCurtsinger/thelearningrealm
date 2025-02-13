@@ -3,6 +3,7 @@ import { Sparkles } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getPlacementTestResult, type Lesson } from '../utils/placementTestStorage';
 import { PlacementTestChat } from './chat/PlacementTestChat';
+import { games } from '../utils/gamesData';
 import { CountingGame } from './games/CountingGame';
 import { LetterMatchingGame } from './games/LetterMatchingGame';
 import { FindLetterGame } from './games/FindLetterGame';
@@ -40,7 +41,7 @@ const GAME_AVATARS: Record<string, string> = {
   'icandoitall': 'superhero&backgroundColor=transparent&eyes=variant16&mouth=variant16&hair=long01'
 };
 
-// Default games for users without placement test results
+// Default lessons for users without placement test results
 const DEFAULT_LESSONS: Lesson[] = [
   {
     id: 'lettermatching',
@@ -62,32 +63,6 @@ const DEFAULT_LESSONS: Lesson[] = [
   }
 ];
 
-// Helper function to format game titles
-const formatGameTitle = (gameId: string): string => {
-  const titles: Record<string, string> = {
-    'icanmove': '🏃 I Can Move!',
-    'icanwave': '👋 I Can Wave!',
-    'icanjump': '🦘 I Can Jump!',
-    'icanclap': '👏 I Can Clap!',
-    'icanstomp': '👣 I Can Stomp!',
-    'icandoitall': '🌟 I Can Do It All!'
-  };
-  return titles[gameId] || gameId;
-};
-
-// Helper function to get game descriptions
-const getGameDescription = (gameId: string): string => {
-  const descriptions: Record<string, string> = {
-    'icanmove': 'Learn movement words with interactive actions!',
-    'icanwave': 'Wave hello and learn social interactions!',
-    'icanjump': 'Jump and learn new action words!',
-    'icanclap': 'Clap along to rhythm and phonics!',
-    'icanstomp': 'Stomp around while learning coordination!',
-    'icandoitall': 'Practice all actions in one fun game!'
-  };
-  return descriptions[gameId] || 'A fun learning game!';
-};
-
 // Map component names to actual components with correct case sensitivity
 const GAME_COMPONENTS: Record<string, React.ComponentType<any>> = {
   'CountingGame': CountingGame,
@@ -108,42 +83,6 @@ const GAME_COMPONENTS: Record<string, React.ComponentType<any>> = {
   'ICanDoItAllGame': ICanDoItAllGame
 };
 
-// Helper function to map game IDs to component names with correct case
-const getComponentName = (gameId: string): string => {
-  const componentMappings: Record<string, string> = {
-    'icanmove': 'ICanMoveGame',
-    'icanwave': 'ICanWaveGame',
-    'icanjump': 'ICanJumpGame',
-    'icanclap': 'ICanClapGame',
-    'icanstomp': 'ICanStompGame',
-    'icandoitall': 'ICanDoItAllGame',
-    'chatwithgpt': 'ChatWithGPTGame',
-    'whatamiwearing': 'WhatAmIWearingGame',
-    'wheresmytoy': 'WheresMyToyGame',
-    'counting': 'CountingGame',
-    'lettermatching': 'LetterMatchingGame',
-    'findletter': 'FindLetterGame',
-    'phoneticsound': 'PhoneticSoundGame',
-    'wordbuilder': 'WordBuilderGame',
-    'shapesorter': 'ShapeSorterGame',
-    'emotionmatch': 'EmotionMatchGame'
-  };
-  return componentMappings[gameId] || '';
-};
-
-// Helper function to map game IDs to lesson objects
-const mapGameToLesson = (gameId: string, difficultyLevel: string = 'beginner'): Lesson => {
-  return {
-    id: gameId,
-    title: formatGameTitle(gameId),
-    description: getGameDescription(gameId),
-    targetSkills: ['vocabulary', 'observation', 'interaction'],
-    difficultyLevel,
-    icon: gameId,
-    component: getComponentName(gameId) // Use the correct case-sensitive component name
-  };
-};
-
 export function LearningPath({ isDarkMode, isVibrant, t, language }: LearningPathProps) {
   const { user } = useAuth();
   const [activeGame, setActiveGame] = useState<string | null>(null);
@@ -160,25 +99,47 @@ export function LearningPath({ isDarkMode, isVibrant, t, language }: LearningPat
         console.log("✅ Retrieved Placement Test Result:", result);
 
         if (result?.recommendedGames && Array.isArray(result.recommendedGames)) {
-          console.log("🎮 Recommended Games:", result.recommendedGames);
+          console.log("🎮 Recommended Game IDs:", result.recommendedGames);
           
-          // Map game IDs to full lesson objects
+          // Map game IDs to local game data
           const mappedLessons = result.recommendedGames
             .map(gameId => {
-              console.log("🔍 Processing game ID:", gameId);
-              const lesson = mapGameToLesson(gameId, result.difficultyLevel);
-              console.log("📋 Mapped lesson:", lesson);
-              console.log("🎯 Component name:", lesson.component);
-              console.log("✨ Available components:", Object.keys(GAME_COMPONENTS));
-              console.log("🔗 Component exists:", !!GAME_COMPONENTS[lesson.component]);
-              return lesson;
+              console.log("🔍 Looking up game ID:", gameId);
+              const gameData = games.find(g => g.id === gameId);
+              
+              if (!gameData) {
+                console.warn("⚠️ No matching game found for ID:", gameId);
+                return null;
+              }
+
+              console.log("✨ Found game data:", {
+                id: gameData.id,
+                title: gameData.title,
+                component: gameData.component
+              });
+
+              return {
+                id: gameData.id,
+                title: gameData.title,
+                description: gameData.description,
+                targetSkills: gameData.skills,
+                difficultyLevel: result.difficultyLevel || gameData.difficulty,
+                icon: gameData.id,
+                component: gameData.component
+              };
             })
+            .filter(Boolean)
             .slice(0, 2);
 
-          console.log("📚 Mapped Lessons:", mappedLessons);
-          setDisplayedLessons(mappedLessons);
+          if (mappedLessons.length === 0) {
+            console.warn("⚠️ No valid games found, using default lessons");
+            setDisplayedLessons(DEFAULT_LESSONS);
+          } else {
+            console.log("📚 Using mapped lessons:", mappedLessons);
+            setDisplayedLessons(mappedLessons as Lesson[]);
+          }
         } else {
-          console.log("⚠️ No valid recommended games found, using default lessons");
+          console.log("ℹ️ No valid recommended games found, using default lessons");
           setDisplayedLessons(DEFAULT_LESSONS);
         }
       } else {
@@ -195,19 +156,43 @@ export function LearningPath({ isDarkMode, isVibrant, t, language }: LearningPat
     console.log("📝 Full result object:", result);
     
     if (result?.recommendedGames && Array.isArray(result.recommendedGames)) {
+      // Map recommended game IDs to local game data
       const mappedLessons = result.recommendedGames
         .map(gameId => {
-          console.log("🔍 Processing recommended game ID:", gameId);
-          const lesson = mapGameToLesson(gameId);
-          console.log("📋 Mapped to lesson:", lesson);
-          console.log("🎯 Component name:", lesson.component);
-          console.log("🔗 Component exists:", !!GAME_COMPONENTS[lesson.component]);
-          return lesson;
+          console.log("🔍 Looking up game ID:", gameId);
+          const gameData = games.find(g => g.id === gameId);
+          
+          if (!gameData) {
+            console.warn("⚠️ No matching game found for ID:", gameId);
+            return null;
+          }
+
+          console.log("✨ Found game data:", {
+            id: gameData.id,
+            title: gameData.title,
+            component: gameData.component
+          });
+
+          return {
+            id: gameData.id,
+            title: gameData.title,
+            description: gameData.description,
+            targetSkills: gameData.skills,
+            difficultyLevel: 'beginner',
+            icon: gameData.id,
+            component: gameData.component
+          };
         })
+        .filter(Boolean)
         .slice(0, 2);
-      
-      console.log("✨ Mapped lessons for display:", mappedLessons);
-      setDisplayedLessons(mappedLessons);
+
+      if (mappedLessons.length === 0) {
+        console.warn("⚠️ No valid games found after placement test, using default lessons");
+        setDisplayedLessons(DEFAULT_LESSONS);
+      } else {
+        console.log("📚 Using mapped lessons from placement test:", mappedLessons);
+        setDisplayedLessons(mappedLessons as Lesson[]);
+      }
     } else {
       console.error("❌ Invalid recommended games array:", result?.recommendedGames);
       setDisplayedLessons(DEFAULT_LESSONS);
@@ -220,8 +205,6 @@ export function LearningPath({ isDarkMode, isVibrant, t, language }: LearningPat
     const selectedLesson = displayedLessons.find(lesson => lesson.id === activeGame);
     console.log("🎮 Selected game:", activeGame);
     console.log("📋 Selected lesson:", selectedLesson);
-    console.log("🎯 Component name:", selectedLesson?.component);
-    console.log("🔍 Available components:", Object.keys(GAME_COMPONENTS));
     
     if (selectedLesson?.component && GAME_COMPONENTS[selectedLesson.component]) {
       const GameComponent = GAME_COMPONENTS[selectedLesson.component];
