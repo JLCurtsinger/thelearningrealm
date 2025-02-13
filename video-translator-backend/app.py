@@ -51,6 +51,10 @@ def translate_video_endpoint():
 @app.route("/translate-video-url", methods=["POST", "OPTIONS"])
 @cross_origin()
 def translate_video_url():
+    # Handle OPTIONS request explicitly
+    if request.method == 'OPTIONS':
+        return jsonify({}), 200
+        
     data = request.json
     video_url = data.get("video_url")
 
