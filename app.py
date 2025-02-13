@@ -48,13 +48,9 @@ def translate_video_endpoint():
             os.remove(output_filename)
 
 # Route 2: URL-Based Video Translation
-@app.route("/translate-video-url", methods=["POST", "OPTIONS"])
+@app.route("/translate-video-url", methods=["POST", "OPTIONS"], strict_slashes=False)
 @cross_origin()
 def translate_video_url():
-    # Handle OPTIONS request explicitly
-    if request.method == 'OPTIONS':
-        return jsonify({}), 200
-        
     data = request.json
     video_url = data.get("video_url")
 
