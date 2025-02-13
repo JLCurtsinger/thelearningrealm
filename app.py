@@ -49,7 +49,7 @@ def translate_video_endpoint():
 
 # Route 2: URL-Based Video Translation
 @app.route("/translate-video-url", methods=["POST", "OPTIONS"], strict_slashes=False)
-@cross_origin()
+@cross_origin(origin="https://lessonlink.org")
 def translate_video_url():
     data = request.json
     video_url = data.get("video_url")
