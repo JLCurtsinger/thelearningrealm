@@ -123,6 +123,20 @@ Any violation makes the response invalid.`
 
       const validDifficulties = ['beginner', 'intermediate', 'advanced'];
 
+      // Component mapping dictionary
+      const componentMap = {
+        findletter: 'FindLetterGame',
+        lettermatching: 'LetterMatchingGame',
+        phoneticsound: 'PhoneticSoundGame',
+        wordbuilder: 'WordBuilderGame',
+        counting: 'CountingGame',
+        shapesorter: 'ShapeSorterGame',
+        emotionmatch: 'EmotionMatchGame',
+        chatwithgpt: 'ChatWithGPTGame',
+        whatamiwearing: 'WhatAmIWearingGame',
+        wheresmytoy: 'WheresMyToyGame'
+      };
+
       result.lessons.forEach((lesson, index) => {
         console.warn(`Validating lesson ${index + 1}...`);
         
@@ -158,16 +172,20 @@ Any violation makes the response invalid.`
           throw new Error(`Invalid difficulty level: ${lesson.difficultyLevel}`);
         }
 
-        // Ensure component name matches convention
-        const expectedComponent = lesson.id.split('-')
-          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-          .join('') + 'Game';
+        // Map component name using dictionary
+        const mappedComponent = componentMap[lesson.id];
+        if (!mappedComponent) {
+          console.warn('Fallback triggered: No known component for', lesson.id);
+          console.warn('Available components:', Object.keys(componentMap).join(', '));
+          throw new Error(`Unknown component for ${lesson.id}`);
+        }
         
-        if (lesson.component !== expectedComponent) {
-          console.warn('Fixing component name in lesson', index + 1);
+        // Update component name and log the change
+        if (lesson.component !== mappedComponent) {
+          console.warn('Updating component name in lesson', index + 1);
           console.warn('Original:', lesson.component);
-          console.warn('Fixed to:', expectedComponent);
-          lesson.component = expectedComponent;
+          console.warn('Mapped to:', mappedComponent);
+          lesson.component = mappedComponent;
         }
       });
 
