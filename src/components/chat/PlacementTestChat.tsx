@@ -23,11 +23,10 @@ export function PlacementTestChat({ isDarkMode, isVibrant, onComplete }: Placeme
 
   // Questions for the placement test
   const questions = [
-    "Great! Now, has your child started learning the alphabet yet?",
     "Does your child enjoy interactive games with sound and music?",
     "How comfortable is your child with using digital devices?",
-    "What specific skills would you like your child to develop? (e.g., reading, vocabulary, pronunciation)",
-    "Last question: How much time can your child typically focus on learning activities?"
+    "What specific skills would you like your child to develop? (e.g., reading, vocabulary, pronunciation, etc.)",
+    "Last question: How much time can your child typically focus on learning activities per day?"
   ];
 
   // Scroll to bottom whenever messages change
@@ -71,7 +70,7 @@ export function PlacementTestChat({ isDarkMode, isVibrant, onComplete }: Placeme
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            prompt: INITIAL_MESSAGE,
+            prompt: INITIAL_MESSAGE + " Please recommend at least 4-5 different games based on the responses, ensuring a diverse mix of activities that target different skills.",
             responses: messages.map(m => ({ text: m.text, isUser: !m.isBot }))
           })
         });
@@ -81,7 +80,7 @@ export function PlacementTestChat({ isDarkMode, isVibrant, onComplete }: Placeme
         }
 
         const data = await response.json();
-        console.log('OpenAI API response:', data); // Debug log
+        console.log('🔍 OpenAI API Raw Response:', data); // Debug log for API response
 
         if (data.error) {
           throw new Error(data.error);
