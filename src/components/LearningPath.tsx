@@ -123,12 +123,18 @@ const mapAILessonsToLocalGames = (
     });
   }
 
+  // Randomly select 2 games if we have more than 2 valid lessons
+  const selectedLessons = validLessons.length > 2
+    ? validLessons.sort(() => 0.5 - Math.random()).slice(0, 2)
+    : validLessons;
+
   console.log("\n📊 Mapping Results:");
   console.log(`- Total AI lessons: ${aiLessons.length}`);
   console.log(`- Valid matches found: ${validLessons.length}`);
-  console.log("📚 Final valid lessons:", validLessons);
+  console.log(`- Randomly selected: ${selectedLessons.length}`);
+  console.log("✅ Final selected lessons:", selectedLessons);
 
-  return validLessons;
+  return selectedLessons;
 };
 
 export function LearningPath({ isDarkMode, isVibrant, t, language }: LearningPathProps) {
@@ -150,7 +156,7 @@ export function LearningPath({ isDarkMode, isVibrant, t, language }: LearningPat
           const mappedLessons = mapAILessonsToLocalGames(
             result.lessons,
             result.difficultyLevel
-          ).slice(0, 2);
+          );
 
           if (mappedLessons.length === 0) {
             console.warn("⚠️ No valid lessons could be created, using defaults");
@@ -179,7 +185,7 @@ export function LearningPath({ isDarkMode, isVibrant, t, language }: LearningPat
     if (result?.lessons && Array.isArray(result.lessons)) {
       const mappedLessons = mapAILessonsToLocalGames(
         result.lessons
-      ).slice(0, 2);
+      );
 
       if (mappedLessons.length === 0) {
         console.warn("⚠️ No valid lessons could be created after placement test");
