@@ -69,27 +69,28 @@ export function ShapeSorterGame({ isDarkMode, isVibrant, onExit, language }: Sha
   }, [isStarted]);
 
   const generateNewRound = () => {
-    // Select random shape
-    const newShape = shapes[currentShape];
+    // Always include the target shape
+    const targetShape = shapes[currentShape];
     
-    // Generate three random shapes for options
-    let shapeOptions = [newShape];
-    while (shapeOptions.length < 3) {
-      const randomShape = shapes[Math.floor(Math.random() * shapes.length)];
-      if (!shapeOptions.find(s => s.id === randomShape.id)) {
-        shapeOptions.push(randomShape);
-      }
-    }
+    // Create a pool of other shapes excluding the target shape
+    const otherShapes = shapes.filter(s => s.id !== targetShape.id);
     
-    // Shuffle options
-    shapeOptions = shapeOptions.sort(() => Math.random() - 0.5);
-    setOptions(shapeOptions);
+    // Randomly select 2 other shapes
+    const selectedOtherShapes = otherShapes
+      .sort(() => Math.random() - 0.5)
+      .slice(0, 2);
+    
+    // Combine target shape with random shapes and shuffle
+    const allOptions = [targetShape, ...selectedOtherShapes]
+      .sort(() => Math.random() - 0.5);
+    
+    setOptions(allOptions);
 
     // Speak the prompt
     if (soundEnabled) {
       const prompt = language === 'es'
-        ? `¿Puedes encontrar el ${newShape.name.es}?`
-        : `Can you find the ${newShape.name.en}?`;
+        ? `¿Puedes encontrar el ${targetShape.name.es}?`
+        : `Can you find the ${targetShape.name.en}?`;
       speakText(prompt, language === 'es' ? 'es-ES' : 'en-US');
     }
   };
