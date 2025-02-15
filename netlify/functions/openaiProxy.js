@@ -2,9 +2,9 @@ const fetch = require("node-fetch");
 
 exports.handler = async (event) => {
   // Debug logging for API key
-  console.log('OpenAI API Key present:', !!process.env.OPENAI_API_KEY);
-  console.log('OpenAI API Key length:', process.env.OPENAI_API_KEY?.length);
-  console.log('OpenAI API Key prefix:', process.env.OPENAI_API_KEY?.substring(0, 7));
+  console.log('OpenAI API Key present:', !!process.env.VITE_OPENAI_API_KEY);
+  console.log('OpenAI API Key length:', process.env.VITE_OPENAI_API_KEY?.length);
+  console.log('OpenAI API Key prefix:', process.env.VITE_OPENAI_API_KEY?.substring(0, 7));
 
   if (event.httpMethod !== "POST") {
     return {
@@ -23,11 +23,6 @@ exports.handler = async (event) => {
       };
     }
 
-    // Validate OpenAI API key
-    if (!process.env.OPENAI_API_KEY) {
-      throw new Error('Missing OpenAI API key in environment variables');
-    }
-
     // Log request payload
     console.log('Making OpenAI request with:', {
       prompt: prompt.substring(0, 50) + '...',
@@ -38,7 +33,7 @@ exports.handler = async (event) => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        Authorization: `Bearer ${process.env.VITE_OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
         model: "gpt-4o-mini",
