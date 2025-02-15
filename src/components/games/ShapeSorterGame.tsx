@@ -68,9 +68,10 @@ export function ShapeSorterGame({ isDarkMode, isVibrant, onExit, language }: Sha
     }
   }, [isStarted]);
 
-  const generateNewRound = () => {
-    // Always include the target shape
-    const targetShape = shapes[currentShape];
+  const generateNewRound = (shapeIndex?: number) => {
+    // Use provided shapeIndex if available, otherwise use currentShape
+    const targetIndex = typeof shapeIndex === 'number' ? shapeIndex : currentShape;
+    const targetShape = shapes[targetIndex];
     
     // Create a pool of other shapes excluding the target shape
     const otherShapes = shapes.filter(s => s.id !== targetShape.id);
@@ -112,8 +113,9 @@ export function ShapeSorterGame({ isDarkMode, isVibrant, onExit, language }: Sha
       setTimeout(() => {
         setShowCelebration(false);
         if (currentShape < shapes.length - 1) {
-          setCurrentShape(prev => prev + 1);
-          generateNewRound();
+          const nextShapeIndex = currentShape + 1;
+          setCurrentShape(nextShapeIndex);
+          generateNewRound(nextShapeIndex);
         }
       }, 2000);
     } else {
