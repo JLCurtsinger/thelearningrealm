@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Trophy,
   Clock,
@@ -202,7 +202,7 @@ export function KidDashboard({ isDarkMode, isVibrant, language, t }: KidDashboar
               <card.mainIcon className={`
                 w-24 h-24
                 ${isVibrant
-                  ? 'text-white'  // Fallback color for Rainbow Mode
+                  ? 'text-white'
                   : isDarkMode
                     ? 'text-white'
                     : 'text-gray-900'
@@ -217,7 +217,7 @@ export function KidDashboard({ isDarkMode, isVibrant, language, t }: KidDashboar
                 absolute -bottom-2 -right-2
                 w-12 h-12
                 ${isVibrant
-                  ? 'text-white'  // Fallback color for Rainbow Mode
+                  ? 'text-white'
                   : isDarkMode
                     ? 'text-white/75'
                     : 'text-gray-900/75'
@@ -230,10 +230,10 @@ export function KidDashboard({ isDarkMode, isVibrant, language, t }: KidDashboar
             <div className="text-center space-y-2">
               <h3 className={`
                 text-3xl md:text-4xl font-extrabold font-comic tracking-wide
-                ${isVibrant
-                  ? 'bg-gradient-to-r from-white via-white to-white bg-clip-text text-transparent'
-                  : isDarkMode
-                    ? 'text-white'
+                ${isDarkMode
+                  ? 'text-white'
+                  : isVibrant
+                    ? 'text-gray-900'  // Black text in Rainbow Mode + Light Mode
                     : 'text-gray-900'
                 }
                 transform hover:scale-110 transition-transform
@@ -248,10 +248,10 @@ export function KidDashboard({ isDarkMode, isVibrant, language, t }: KidDashboar
               {card.id !== 'profile' && (
                 <p className={`
                   text-2xl md:text-3xl font-bold font-comic tracking-wider
-                  ${isVibrant
-                    ? 'bg-gradient-to-r from-white via-white to-white bg-clip-text text-transparent'
-                    : isDarkMode
-                      ? 'text-gray-300'
+                  ${isDarkMode
+                    ? 'text-gray-300'
+                    : isVibrant
+                      ? 'text-gray-900'  // Black text in Rainbow Mode + Light Mode
                       : 'text-gray-600'
                   }
                   transform hover:scale-110 transition-transform
