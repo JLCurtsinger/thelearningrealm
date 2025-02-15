@@ -291,5 +291,3 @@ export function KidDashboard({ isDarkMode, isVibrant, language, t }: KidDashboar
     </div>
   );
 }
-
-export { KidDashboard }
