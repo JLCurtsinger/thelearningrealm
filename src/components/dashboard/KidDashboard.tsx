@@ -1,45 +1,73 @@
 import React, { useEffect, useState } from 'react';
-import { Trophy, Clock, Star, User, Sparkles } from 'lucide-react';
+import {
+  Trophy,
+  Clock,
+  Star,
+  User,
+  Sparkles,
+  BookOpen,
+  Timer,
+  Crown,
+  GraduationCap
+} from 'lucide-react';
 import { useGameAudio } from '../games/GameAudioContext';
 import { useDashboard } from '../../contexts/DashboardContext';
+import { getProgressData, updateScreenTime } from '../../utils/progressStorage';
+import { useAuth } from '../../contexts/AuthContext';
 
-// Kid Mode information cards
+// Kid Mode information cards with enhanced visuals
 const INFO_CARDS = [
   {
     id: 'profile',
     icon: User,
+    mainIcon: GraduationCap,
     color: 'from-purple-400 via-pink-400 to-red-400',
+    darkColor: 'from-purple-500/30 via-pink-500/30 to-red-500/30',
+    lightColor: 'from-purple-100 via-pink-50 to-red-50',
     getTitle: (name: string) => name,
     getValue: () => '',
-    titleKey: 'profile'
+    titleKey: 'profile',
+    bgPattern: 'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.1) 0%, transparent 60%)'
   },
   {
     id: 'progress',
     icon: Star,
+    mainIcon: BookOpen,
     color: 'from-blue-400 via-cyan-400 to-teal-400',
+    darkColor: 'from-blue-500/30 via-cyan-500/30 to-teal-500/30',
+    lightColor: 'from-blue-100 via-cyan-50 to-teal-50',
     getTitle: (t: any) => t.dashboard.learningProgress,
-    getValue: (progress: number) => `${progress}%`,
-    titleKey: 'progress'
+    getValue: (completed: number, total: number) => `${completed}/${total}`,
+    titleKey: 'progress',
+    bgPattern: 'radial-gradient(circle at 30% 70%, rgba(255,255,255,0.1) 0%, transparent 50%)'
   },
   {
     id: 'playtime',
     icon: Clock,
+    mainIcon: Timer,
     color: 'from-green-400 via-emerald-400 to-teal-400',
+    darkColor: 'from-green-500/30 via-emerald-500/30 to-teal-500/30',
+    lightColor: 'from-green-100 via-emerald-50 to-teal-50',
     getTitle: (t: any) => t.dashboard.screenTime,
     getValue: (minutes: number) => {
       const hours = Math.floor(minutes / 60);
       const mins = minutes % 60;
       return `${hours}h ${mins}m`;
     },
-    titleKey: 'playtime'
+    titleKey: 'playtime',
+    bgPattern: 'radial-gradient(circle at 70% 30%, rgba(255,255,255,0.1) 0%, transparent 50%)'
   },
   {
     id: 'rewards',
     icon: Trophy,
+    mainIcon: Crown,
     color: 'from-yellow-400 via-orange-400 to-red-400',
+    darkColor: 'from-yellow-500/30 via-orange-500/30 to-red-500/30',
+    lightColor: 'from-yellow-100 via-orange-50 to-red-50',
     getTitle: (t: any) => t.dashboard.rewards,
     getValue: (points: number) => points.toString(),
-    titleKey: 'rewards'
+    titleKey: 'rewards',
+    bgPattern: 'radial-gradient(circle at 20% 80%, rgba(255,255,255,0.1) 0%, transparent 50%)'
   }
 ];
 
@@ -54,41 +82,37 @@ export function KidDashboard({ isDarkMode, isVibrant, language, t }: KidDashboar
   const {
     selectedChild,
     soundEnabled,
-    progressPercentage,
-    xpPoints,
     setActiveCard,
-    setShowCelebration
+    setShowCelebration,
+    displayedLessons
   } = useDashboard();
+  const { user } = useAuth();
   const { speakText } = useGameAudio();
-  const [playTime, setPlayTime] = useState(0);
+  const [progressData, setProgressData] = useState<any>(null);
 
-  // Track play time
+  // Load progress data
   useEffect(() => {
-    // Get stored play time or initialize
-    const storedTime = localStorage.getItem('playTime');
-    const lastDate = localStorage.getItem('lastPlayDate');
-    const today = new Date().toDateString();
+    const loadProgress = async () => {
+      if (user) {
+        const data = await getProgressData(user.uid);
+        setProgressData(data);
+      }
+    };
+    loadProgress();
+  }, [user]);
 
-    if (lastDate !== today) {
-      // Reset play time for new day
-      setPlayTime(0);
-      localStorage.setItem('lastPlayDate', today);
-      localStorage.setItem('playTime', '0');
-    } else if (storedTime) {
-      setPlayTime(parseInt(storedTime, 10));
+  // Update screen time every minute
+  useEffect(() => {
+    if (user) {
+      const interval = setInterval(async () => {
+        await updateScreenTime(user.uid);
+        const updatedData = await getProgressData(user.uid);
+        setProgressData(updatedData);
+      }, 60000); // 1 minute
+
+      return () => clearInterval(interval);
     }
-
-    // Update play time every minute
-    const interval = setInterval(() => {
-      setPlayTime(prev => {
-        const newTime = prev + 1;
-        localStorage.setItem('playTime', newTime.toString());
-        return newTime;
-      });
-    }, 60000); // 1 minute
-
-    return () => clearInterval(interval);
-  }, []);
+  }, [user]);
 
   const handleCardClick = (cardId: string) => {
     setActiveCard(cardId);
@@ -104,15 +128,17 @@ export function KidDashboard({ isDarkMode, isVibrant, language, t }: KidDashboar
           speechText = selectedChild;
           break;
         case 'progress':
-          speechText = `${t.dashboard.learningProgress}: ${progressPercentage}%`;
+          const completed = progressData?.completedLessons?.length || 0;
+          const total = displayedLessons?.length || 0;
+          speechText = `${t.dashboard.learningProgress}: ${completed} ${t.dashboard.of} ${total}`;
           break;
         case 'playtime':
-          const hours = Math.floor(playTime / 60);
-          const mins = playTime % 60;
+          const hours = Math.floor((progressData?.screenTimeToday || 0) / 60);
+          const mins = (progressData?.screenTimeToday || 0) % 60;
           speechText = `${t.dashboard.screenTime}: ${hours} ${t.dashboard.hours} ${mins} ${t.dashboard.minutes}`;
           break;
         case 'rewards':
-          speechText = `${t.dashboard.rewards}: ${xpPoints} ${t.dashboard.points}`;
+          speechText = `${t.dashboard.rewards}: ${progressData?.rewardPoints || 0} ${t.dashboard.points}`;
           break;
       }
 
@@ -148,30 +174,71 @@ export function KidDashboard({ isDarkMode, isVibrant, language, t }: KidDashboar
           {/* Gradient Background */}
           <div className={`
             absolute inset-0
+            bg-gradient-to-br
+            ${isDarkMode ? card.darkColor : card.lightColor}
+            group-hover:opacity-80
+            transition-opacity
+          `} />
+
+          {/* Background Pattern */}
+          <div
+            className="absolute inset-0 opacity-30"
+            style={{ backgroundImage: card.bgPattern }}
+          />
+
+          {/* Glowing Effect */}
+          <div className={`
+            absolute inset-0
             bg-gradient-to-br ${card.color}
-            opacity-40 group-hover:opacity-60
-            transition-opacity duration-500
+            opacity-0 group-hover:opacity-20
+            transition-opacity
+            blur-xl
           `} />
 
           {/* Content */}
           <div className="relative flex flex-col items-center justify-center h-full space-y-6">
-            <card.icon className={`
-              w-24 h-24
-              ${isVibrant
-                ? `text-transparent bg-clip-text bg-gradient-to-r ${card.color}`
-                : isDarkMode
-                  ? 'text-white'
-                  : 'text-gray-900'
-              }
-              animate-float
-            `} />
+            {/* Main Icon with Animation */}
+            <div className="relative">
+              <card.mainIcon className={`
+                w-24 h-24
+                ${isVibrant
+                  ? 'text-white'  // Fallback color for Rainbow Mode
+                  : isDarkMode
+                    ? 'text-white'
+                    : 'text-gray-900'
+                }
+                animate-float
+                drop-shadow-lg
+                ${isVibrant ? 'opacity-90' : 'opacity-100'}
+              `} />
+              
+              {/* Secondary Icon */}
+              <card.icon className={`
+                absolute -bottom-2 -right-2
+                w-12 h-12
+                ${isVibrant
+                  ? 'text-white'  // Fallback color for Rainbow Mode
+                  : isDarkMode
+                    ? 'text-white/75'
+                    : 'text-gray-900/75'
+                }
+                animate-pulse
+                ${isVibrant ? 'opacity-75' : 'opacity-100'}
+              `} />
+            </div>
 
             <div className="text-center space-y-2">
               <h3 className={`
                 text-3xl md:text-4xl font-extrabold font-comic tracking-wide
-                ${isDarkMode ? 'text-white' : 'text-gray-900'}
+                ${isVibrant
+                  ? 'bg-gradient-to-r from-white via-white to-white bg-clip-text text-transparent'
+                  : isDarkMode
+                    ? 'text-white'
+                    : 'text-gray-900'
+                }
                 transform hover:scale-110 transition-transform
-                ${isVibrant ? 'drop-shadow-lg' : ''}
+                drop-shadow-lg
+                leading-tight
               `}>
                 {card.id === 'profile'
                   ? card.getTitle(selectedChild)
@@ -181,15 +248,21 @@ export function KidDashboard({ isDarkMode, isVibrant, language, t }: KidDashboar
               {card.id !== 'profile' && (
                 <p className={`
                   text-2xl md:text-3xl font-bold font-comic tracking-wider
-                  ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}
+                  ${isVibrant
+                    ? 'bg-gradient-to-r from-white via-white to-white bg-clip-text text-transparent'
+                    : isDarkMode
+                      ? 'text-gray-300'
+                      : 'text-gray-600'
+                  }
                   transform hover:scale-110 transition-transform
-                  ${isVibrant ? 'drop-shadow' : ''}
+                  drop-shadow
+                  mt-2
                 `}>
                   {card.id === 'progress'
-                    ? card.getValue(progressPercentage)
+                    ? card.getValue(progressData?.completedLessons?.length || 0, displayedLessons?.length || 0)
                     : card.id === 'playtime'
-                      ? card.getValue(playTime)
-                      : card.getValue(xpPoints)}
+                      ? card.getValue(progressData?.screenTimeToday || 0)
+                      : card.getValue(progressData?.rewardPoints || 0)}
                 </p>
               )}
             </div>
@@ -202,7 +275,7 @@ export function KidDashboard({ isDarkMode, isVibrant, language, t }: KidDashboar
                 key={i}
                 className={`
                   absolute w-6 h-6
-                  text-yellow-400
+                  ${isVibrant ? 'text-white' : 'text-yellow-400'}
                   animate-pulse
                 `}
                 style={{
@@ -218,3 +291,5 @@ export function KidDashboard({ isDarkMode, isVibrant, language, t }: KidDashboar
     </div>
   );
 }
+
+export { KidDashboard }
