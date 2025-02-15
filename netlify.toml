@@ -4,7 +4,7 @@
   functions = "netlify/functions"
 
 [build.environment]
-  # Comma-separated list of env vars to ignore
+  # Comma-separated list of env vars to ignore in secrets scanning
   SECRETS_SCAN_OMIT_KEYS = "VITE_FIREBASE_API_KEY,VITE_FIREBASE_APP_ID,VITE_FIREBASE_MESSAGING_SENDER_ID"
 
 [dev]

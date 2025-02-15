@@ -23,6 +23,11 @@ exports.handler = async (event) => {
       };
     }
 
+    // Validate OpenAI API key
+    if (!process.env.VITE_OPENAI_API_KEY) {
+      throw new Error('Missing OpenAI API key in environment variables');
+    }
+
     // Log request payload
     console.log('Making OpenAI request with:', {
       prompt: prompt.substring(0, 50) + '...',
