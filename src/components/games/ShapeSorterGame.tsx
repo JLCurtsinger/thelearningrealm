@@ -49,29 +49,24 @@ export function ShapeSorterGame({ isDarkMode, isVibrant, onExit, language }: Sha
   const [options, setOptions] = useState<typeof shapes>([]);
   const [score, setScore] = useState(0);
   const [showCelebration, setShowCelebration] = useState(false);
-  const [isStarted, setIsStarted] = useState(false);
+  const [round, setRound] = useState(1);
+  const [totalRounds] = useState(5);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [selectedShape, setSelectedShape] = useState<string | null>(null);
+  const [isShapeAnimating, setIsShapeAnimating] = useState(false);
+  const [showShapeLabel, setShowShapeLabel] = useState(false);
+  const [isShapeError, setIsShapeError] = useState(false);
 
   useEffect(() => {
-    if (soundEnabled && !isStarted) {
-      speakText(
-        language === 'es' 
-          ? '¡Vamos a aprender las formas!' 
-          : "Let's learn about shapes!",
-        language === 'es' ? 'es-ES' : 'en-US'
-      );
-    }
-  }, [isStarted]);
+    generateNewRound();
+  }, []);
 
-  useEffect(() => {
-    if (isStarted) {
-      generateNewRound();
-    }
-  }, [isStarted]);
-
-  const generateNewRound = (shapeIndex?: number) => {
-    // Use provided shapeIndex if available, otherwise use currentShape
-    const targetIndex = typeof shapeIndex === 'number' ? shapeIndex : currentShape;
-    const targetShape = shapes[targetIndex];
+  const generateNewRound = () => {
+    setIsTransitioning(true);
+    setShowShapeLabel(false);
+    setSelectedShape(null);
+    
+    const targetShape = shapes[currentShape];
     
     // Create a pool of other shapes excluding the target shape
     const otherShapes = shapes.filter(s => s.id !== targetShape.id);
@@ -94,32 +89,41 @@ export function ShapeSorterGame({ isDarkMode, isVibrant, onExit, language }: Sha
         : `Can you find the ${targetShape.name.en}?`;
       speakText(prompt, language === 'es' ? 'es-ES' : 'en-US');
     }
+
+    setTimeout(() => {
+      setIsTransitioning(false);
+    }, 300);
   };
 
   const handleShapeClick = (selectedShape: typeof shapes[0]) => {
+    setSelectedShape(selectedShape.id);
+
     if (selectedShape.id === shapes[currentShape].id) {
       playGameSound('success');
-
+      setScore(score + 1);
+      setShowCelebration(true);
+      setIsShapeAnimating(true);
+      setShowShapeLabel(true);
+      
       if (soundEnabled) {
         const celebration = language === 'es'
           ? '¡Excelente trabajo!'
           : 'Great job!';
         speakText(celebration, language === 'es' ? 'es-ES' : 'en-US');
       }
-
-      setScore(score + 1);
-      setShowCelebration(true);
       
       setTimeout(() => {
+        setIsShapeAnimating(false);
         setShowCelebration(false);
-        if (currentShape < shapes.length - 1) {
-          const nextShapeIndex = currentShape + 1;
-          setCurrentShape(nextShapeIndex);
-          generateNewRound(nextShapeIndex);
+        if (round < totalRounds) {
+          setRound(prev => prev + 1);
+          setCurrentShape((currentShape + 1) % shapes.length);
+          generateNewRound();
         }
       }, 2000);
     } else {
       playGameSound('error');
+      setIsShapeError(true);
       
       if (soundEnabled) {
         const tryAgain = language === 'es'
@@ -127,6 +131,11 @@ export function ShapeSorterGame({ isDarkMode, isVibrant, onExit, language }: Sha
           : 'Try again';
         speakText(tryAgain, language === 'es' ? 'es-ES' : 'en-US');
       }
+
+      setTimeout(() => {
+        setIsShapeError(false);
+        setSelectedShape(null);
+      }, 500);
     }
   };
 
@@ -135,26 +144,39 @@ export function ShapeSorterGame({ isDarkMode, isVibrant, onExit, language }: Sha
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
-          <div className={`
-            flex items-center space-x-2 px-4 py-2 rounded-full
-            ${isDarkMode ? 'bg-gray-800' : 'bg-white'}
-            shadow-lg
-          `}>
-            <Star className="w-5 h-5 text-yellow-400" />
-            <span className="font-bold">{score}</span>
-          </div>
-
           <button
-            onClick={toggleSound}
+            onClick={onExit}
             className={`
-              p-3 rounded-full
+              p-2 rounded-full
               ${isDarkMode ? 'bg-gray-800' : 'bg-white'}
               shadow-lg
               transition-transform hover:scale-110
             `}
           >
-            <Volume2 className={`w-6 h-6 ${soundEnabled ? '' : 'opacity-50'}`} />
+            <ArrowLeft className="w-6 h-6" />
           </button>
+          
+          <div className="flex items-center space-x-4">
+            {/* Progress Indicator */}
+            <div className={`
+              px-4 py-2 rounded-full font-bold
+              ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}
+              shadow-lg
+            `}>
+              {language === 'es'
+                ? `Forma ${round} de ${totalRounds}`
+                : `Shape ${round} of ${totalRounds}`}
+            </div>
+
+            <div className={`
+              flex items-center space-x-2 px-4 py-2 rounded-full
+              ${isDarkMode ? 'bg-gray-800' : 'bg-white'}
+              shadow-lg
+            `}>
+              <Star className="w-5 h-5 text-yellow-400" />
+              <span className="font-bold">{score}</span>
+            </div>
+          </div>
         </div>
 
         {/* Game Area */}
@@ -163,118 +185,105 @@ export function ShapeSorterGame({ isDarkMode, isVibrant, onExit, language }: Sha
           ${isDarkMode ? 'bg-gray-800' : 'bg-white'}
           shadow-xl
         `}>
-          {!isStarted ? (
-            // Title Screen
-            <div className="flex flex-col items-center space-y-8">
-              <h1 className={`
-                text-4xl font-bold text-center
-                ${isDarkMode ? 'text-white' : 'text-gray-900'}
-              `}>
-                {language === 'es' ? '¡Formas Divertidas!' : 'Fun Shapes!'}
-              </h1>
+          {/* Target Shape Display */}
+          <div className="text-center mb-8">
+            <h2 className={`
+              text-2xl font-bold font-comic
+              ${isDarkMode ? 'text-white' : 'text-gray-900'}
+            `}>
+              {language === 'es'
+                ? `¿Puedes encontrar el ${shapes[currentShape].name.es}?`
+                : `Can you find the ${shapes[currentShape].name.en}?`}
+            </h2>
+          </div>
 
-              <div className="grid grid-cols-3 gap-8">
-                {shapes.slice(0, 3).map((shape, index) => (
-                  <div
-                    key={index}
-                    className={`
-                      aspect-square rounded-2xl
-                      ${isVibrant
-                        ? `bg-gradient-to-r ${shape.color}`
-                        : isDarkMode
-                          ? 'bg-gray-700'
-                          : 'bg-purple-600'
-                      }
-                      flex items-center justify-center
-                      transform hover:scale-110
-                      transition-all duration-300
-                      animate-float
-                    `}
-                    style={{ animationDelay: `${index * 0.2}s` }}
-                  >
-                    <svg
-                      viewBox="0 0 100 100"
-                      className="w-24 h-24 text-white"
-                    >
-                      <path d={shape.path} fill="currentColor" />
-                    </svg>
-                  </div>
-                ))}
-              </div>
-
+          {/* Shape Options */}
+          <div className={`
+            grid grid-cols-3 gap-6
+            transition-opacity duration-300
+            ${isTransitioning ? 'opacity-0' : 'opacity-100'}
+          `}>
+            {options.map((shape, index) => (
               <button
-                onClick={() => setIsStarted(true)}
+                key={index}
+                onClick={() => handleShapeClick(shape)}
+                disabled={showCelebration}
                 className={`
-                  px-8 py-4 rounded-xl
-                  flex items-center gap-2
-                  font-bold text-white
-                  transform hover:scale-105
-                  transition-all duration-300
+                  aspect-square rounded-2xl
+                  flex items-center justify-center
+                  transform transition-all duration-300
                   ${isVibrant
-                    ? 'bg-gradient-to-r from-purple-500 via-pink-500 to-red-500'
-                    : 'bg-purple-600 hover:bg-purple-700'
-                  }
-                `}
-              >
-                <Play className="w-6 h-6" />
-                <span>{language === 'es' ? 'Comenzar' : 'Start'}</span>
-              </button>
-            </div>
-          ) : (
-            <>
-              {/* Target Shape */}
-              <div className="flex justify-center mb-12">
-                <div className={`
-                  w-48 h-48 rounded-2xl
-                  ${isVibrant
-                    ? `bg-gradient-to-r ${shapes[currentShape].color}`
+                    ? `bg-gradient-to-r ${shape.color}`
                     : isDarkMode
                       ? 'bg-gray-700'
                       : 'bg-purple-600'
                   }
-                  flex items-center justify-center
+                  ${selectedShape === shape.id && isShapeError
+                    ? 'animate-[shake_0.5s_ease-in-out] border-2 border-red-500'
+                    : 'hover:scale-110'
+                  }
+                  ${shape.id === shapes[currentShape].id && showShapeLabel
+                    ? 'ring-4 ring-green-500 scale-110'
+                    : ''
+                  }
                   shadow-lg
-                `}>
-                  <svg
-                    viewBox="0 0 100 100"
-                    className="w-32 h-32 text-white"
-                  >
-                    <path d={shapes[currentShape].path} fill="currentColor" />
-                  </svg>
-                </div>
-              </div>
+                  disabled:opacity-50
+                  relative
+                  p-4
+                `}
+              >
+                <svg
+                  viewBox="0 0 100 100"
+                  className={`
+                    w-full h-full text-white
+                    ${shape.id === shapes[currentShape].id && isShapeAnimating ? 'animate-bounce' : ''}
+                  `}
+                >
+                  <path d={shape.path} fill="currentColor" />
+                </svg>
 
-              {/* Shape Options */}
-              <div className="grid grid-cols-3 gap-6">
-                {options.map((shape, index) => (
-                  <button
-                    key={index}
-                    onClick={() => handleShapeClick(shape)}
-                    className={`
-                      aspect-square rounded-2xl
-                      flex items-center justify-center
-                      transform hover:scale-110
-                      transition-all duration-300
-                      ${isVibrant
-                        ? `bg-gradient-to-r ${shape.color}`
-                        : isDarkMode
-                          ? 'bg-gray-700'
-                          : 'bg-purple-600'
-                      }
-                      shadow-lg
-                    `}
-                  >
-                    <svg
-                      viewBox="0 0 100 100"
-                      className="w-24 h-24 text-white"
-                    >
-                      <path d={shape.path} fill="currentColor" />
-                    </svg>
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
+                {/* Shape Label Overlay */}
+                {shape.id === shapes[currentShape].id && showShapeLabel && (
+                  <div className={`
+                    absolute bottom-0 left-0 right-0
+                    bg-black/50 backdrop-blur-sm
+                    text-white text-center py-2 font-bold
+                    transform transition-all duration-300
+                    rounded-b-2xl
+                  `}>
+                    {shape.name[language as keyof typeof shape.name]}
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* Controls */}
+          <div className="flex justify-center space-x-4 mt-8">
+            <button
+              onClick={generateNewRound}
+              className={`
+                p-3 rounded-full
+                ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}
+                shadow-lg
+                transition-transform hover:scale-110
+              `}
+            >
+              <RefreshCw className="w-6 h-6" />
+            </button>
+            
+            <button
+              onClick={toggleSound}
+              className={`
+                p-3 rounded-full
+                ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}
+                shadow-lg
+                transition-transform hover:scale-110
+              `}
+            >
+              <Volume2 className={`w-6 h-6 ${soundEnabled ? '' : 'opacity-50'}`} />
+            </button>
+          </div>
 
           {/* Celebration Overlay */}
           {showCelebration && (

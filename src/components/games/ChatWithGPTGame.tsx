@@ -69,12 +69,16 @@ export function ChatWithGPTGame({ isDarkMode, isVibrant, onExit, language }: Cha
   const [showCelebration, setShowCelebration] = useState(false);
   const [messages, setMessages] = useState<Array<{ text: string; isUser: boolean }>>([]);
   const [userInput, setUserInput] = useState('');
+  const [isInputError, setIsInputError] = useState(false);
+  const [isAnimalAnimating, setIsAnimalAnimating] = useState(false);
+  const [showNameOverlay, setShowNameOverlay] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   useEffect(() => {
     if (soundEnabled) {
       const initialPrompt = language === 'es' 
-        ? "¡Hola! ¿Qué animal es este?"
-        : "Hi! What animal is this?";
+        ? "¿Qué animal es este?"
+        : "What animal is this?";
       setMessages([{ text: initialPrompt, isUser: false }]);
       speakText(initialPrompt, language === 'es' ? 'es-ES' : 'en-US');
     }
@@ -84,37 +88,49 @@ export function ChatWithGPTGame({ isDarkMode, isVibrant, onExit, language }: Cha
     if (!userInput.trim()) return;
 
     const animal = animals[currentAnimal];
-    const userMessage = { text: userInput, isUser: true };
+    const inputValue = userInput; // Store input value before clearing
+    setUserInput(''); // Clear input immediately
+
+    const userMessage = { text: inputValue, isUser: true };
     setMessages(prev => [...prev, userMessage]);
-    setUserInput('');
 
     setTimeout(() => {
       if (gameState === 'name') {
-        const isCorrect = userInput.toLowerCase().includes(
+        const isCorrect = inputValue.toLowerCase().includes(
           animal.name[language as keyof typeof animal.name].toLowerCase()
         );
 
         if (isCorrect) {
           playGameSound('success');
+          setIsAnimalAnimating(true);
+          setShowNameOverlay(true);
           
           const response = animal.responses.correct[language as keyof typeof animal.responses.correct];
           setMessages(prev => [...prev, { text: response, isUser: false }]);
           speakText(response, language === 'es' ? 'es-ES' : 'en-US');
           
           setGameState('sound');
+          
+          setTimeout(() => {
+            setIsAnimalAnimating(false);
+          }, 1000);
         } else {
           playGameSound('error');
+          setIsInputError(true);
           
           const tryAgain = language === 'es' ? '¡Inténtalo de nuevo!' : 'Try again!';
           setMessages(prev => [...prev, { text: tryAgain, isUser: false }]);
           speakText(tryAgain, language === 'es' ? 'es-ES' : 'en-US');
+          
+          setTimeout(() => setIsInputError(false), 500);
         }
       } else if (gameState === 'sound') {
         const animalSound = animal.sound[language as keyof typeof animal.sound];
-        const isCorrect = userInput.toLowerCase().includes(animalSound.toLowerCase());
+        const isCorrect = inputValue.toLowerCase().includes(animalSound.toLowerCase());
 
         if (isCorrect) {
           playGameSound('success');
+          setIsAnimalAnimating(true);
           
           const response = animal.responses.sound[language as keyof typeof animal.responses.sound];
           setMessages(prev => [...prev, { text: response, isUser: false }]);
@@ -124,15 +140,21 @@ export function ChatWithGPTGame({ isDarkMode, isVibrant, onExit, language }: Cha
           setShowCelebration(true);
           
           setTimeout(() => {
+            setIsAnimalAnimating(false);
             setShowCelebration(false);
             if (currentAnimal < animals.length - 1) {
-              setCurrentAnimal(prev => prev + 1);
-              setGameState('name');
-              const newPrompt = language === 'es' 
-                ? "¿Qué animal es este?"
-                : "What animal is this?";
-              setMessages([{ text: newPrompt, isUser: false }]);
-              speakText(newPrompt, language === 'es' ? 'es-ES' : 'en-US');
+              setIsTransitioning(true);
+              setTimeout(() => {
+                setCurrentAnimal(prev => prev + 1);
+                setGameState('name');
+                setShowNameOverlay(false);
+                const newPrompt = language === 'es' 
+                  ? "¿Qué animal es este?"
+                  : "What animal is this?";
+                setMessages([{ text: newPrompt, isUser: false }]);
+                speakText(newPrompt, language === 'es' ? 'es-ES' : 'en-US');
+                setIsTransitioning(false);
+              }, 500);
             } else {
               const finalMessage = language === 'es'
                 ? "¡Felicitaciones! ¡Has completado el juego!"
@@ -143,10 +165,13 @@ export function ChatWithGPTGame({ isDarkMode, isVibrant, onExit, language }: Cha
           }, 2000);
         } else {
           playGameSound('error');
+          setIsInputError(true);
           
           const tryAgain = language === 'es' ? '¡Inténtalo de nuevo!' : 'Try again!';
           setMessages(prev => [...prev, { text: tryAgain, isUser: false }]);
           speakText(tryAgain, language === 'es' ? 'es-ES' : 'en-US');
+          
+          setTimeout(() => setIsInputError(false), 500);
         }
       }
     }, 500);
@@ -157,13 +182,26 @@ export function ChatWithGPTGame({ isDarkMode, isVibrant, onExit, language }: Cha
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
-          <div className={`
-            flex items-center space-x-2 px-4 py-2 rounded-full
-            ${isDarkMode ? 'bg-gray-800' : 'bg-white'}
-            shadow-lg
-          `}>
-            <Star className="w-5 h-5 text-yellow-400" />
-            <span className="font-bold">{score}</span>
+          <div className="flex items-center space-x-4">
+            <div className={`
+              flex items-center space-x-2 px-4 py-2 rounded-full
+              ${isDarkMode ? 'bg-gray-800' : 'bg-white'}
+              shadow-lg
+            `}>
+              <Star className="w-5 h-5 text-yellow-400" />
+              <span className="font-bold">{score}</span>
+            </div>
+            
+            {/* Progress Indicator */}
+            <div className={`
+              px-4 py-2 rounded-full font-bold
+              ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}
+              shadow-lg
+            `}>
+              {language === 'es' 
+                ? `Animal ${currentAnimal + 1} de ${animals.length}`
+                : `Animal ${currentAnimal + 1} of ${animals.length}`}
+            </div>
           </div>
 
           <button
@@ -187,12 +225,28 @@ export function ChatWithGPTGame({ isDarkMode, isVibrant, onExit, language }: Cha
         `}>
           {/* Animal Image */}
           <div className="flex justify-center mb-8">
-            <div className="relative w-48 h-48 rounded-2xl overflow-hidden shadow-lg">
+            <div className={`
+              relative w-48 h-48 rounded-2xl overflow-hidden shadow-lg
+              transition-opacity duration-500
+              ${isTransitioning ? 'opacity-0' : 'opacity-100'}
+              ${isAnimalAnimating ? 'animate-bounce' : ''}
+            `}>
               <img
                 src={animals[currentAnimal].image}
                 alt="Animal"
                 className="w-full h-full object-cover"
               />
+              {showNameOverlay && (
+                <div className={`
+                  absolute bottom-0 left-0 right-0
+                  bg-black/50 backdrop-blur-sm
+                  text-white text-center py-2 font-bold
+                  transform transition-all duration-300
+                  ${showNameOverlay ? 'translate-y-0' : 'translate-y-full'}
+                `}>
+                  {animals[currentAnimal].name[language as keyof typeof animals[0]['name']]}
+                </div>
+              )}
             </div>
           </div>
 
@@ -207,13 +261,15 @@ export function ChatWithGPTGame({ isDarkMode, isVibrant, onExit, language }: Cha
               >
                 <div className={`
                   max-w-[80%] px-4 py-2 rounded-xl
+                  transform transition-all duration-300
+                  hover:scale-102
                   ${message.isUser
                     ? isVibrant
-                      ? 'bg-gradient-to-r from-purple-500 via-pink-500 to-red-500 text-white'
-                      : 'bg-purple-600 text-white'
+                      ? 'bg-gradient-to-r from-purple-500 via-pink-500 to-red-500 text-white shadow-lg'
+                      : 'bg-purple-600 text-white shadow-lg'
                     : isDarkMode
-                      ? 'bg-gray-700 text-white'
-                      : 'bg-gray-100 text-gray-900'
+                      ? 'bg-gray-700 text-white shadow-md'
+                      : 'bg-gray-100 text-gray-900 shadow-md'
                   }
                 `}>
                   {message.text}
@@ -232,9 +288,14 @@ export function ChatWithGPTGame({ isDarkMode, isVibrant, onExit, language }: Cha
               placeholder={language === 'es' ? "Escribe tu respuesta..." : "Type your answer..."}
               className={`
                 flex-1 px-4 py-3 rounded-xl
+                transition-all duration-300
                 ${isDarkMode
                   ? 'bg-gray-700 text-white placeholder-gray-400'
                   : 'bg-gray-100 text-gray-900 placeholder-gray-500'
+                }
+                ${isInputError
+                  ? 'border-2 border-red-500 animate-[shake_0.5s_ease-in-out]'
+                  : 'border-2 border-transparent'
                 }
                 focus:outline-none focus:ring-2 focus:ring-purple-400
               `}

@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Star, Volume2, Sparkles, RefreshCw } from 'lucide-react';
+import { useGameAudio } from './GameAudioContext';
 
 interface CountingGameProps {
   isDarkMode: boolean;
   isVibrant: boolean;
   onExit: () => void;
+  language: string;
 }
 
 // Item types for counting
@@ -15,13 +17,20 @@ const ITEMS = [
   { name: 'flower', image: 'https://images.unsplash.com/photo-1490750967868-88aa4486c946?auto=format&fit=crop&w=150&h=150' }
 ];
 
-export function CountingGame({ isDarkMode, isVibrant, onExit }: CountingGameProps) {
+export function CountingGame({ isDarkMode, isVibrant, onExit, language }: CountingGameProps) {
   const [currentItem, setCurrentItem] = useState<typeof ITEMS[0] | null>(null);
   const [itemCount, setItemCount] = useState(0);
   const [options, setOptions] = useState<number[]>([]);
   const [score, setScore] = useState(0);
   const [showCelebration, setShowCelebration] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [questionNumber, setQuestionNumber] = useState(1);
+  const [totalQuestions] = useState(5); // Fixed number of questions
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [showCorrectNumber, setShowCorrectNumber] = useState(false);
+  const [selectedOption, setSelectedOption] = useState<number | null>(null);
+  const [isOptionError, setIsOptionError] = useState(false);
+  const [isItemsAnimating, setIsItemsAnimating] = useState(false);
 
   // Initialize game
   useEffect(() => {
@@ -30,6 +39,10 @@ export function CountingGame({ isDarkMode, isVibrant, onExit }: CountingGameProp
 
   // Generate a new round
   const generateNewRound = () => {
+    setIsTransitioning(true);
+    setShowCorrectNumber(false);
+    setSelectedOption(null);
+    
     // Select random item
     const newItem = ITEMS[Math.floor(Math.random() * ITEMS.length)];
     setCurrentItem(newItem);
@@ -53,11 +66,19 @@ export function CountingGame({ isDarkMode, isVibrant, onExit }: CountingGameProp
 
     // Speak the prompt
     if (soundEnabled) {
-      const utterance = new SpeechSynthesisUtterance(`How many ${newItem.name}s do you see?`);
+      const prompt = language === 'es'
+        ? `¿Cuántos ${newItem.name}s ves?`
+        : `How many ${newItem.name}s do you see?`;
+      const utterance = new SpeechSynthesisUtterance(prompt);
       utterance.rate = 0.8;
       utterance.pitch = 1.2;
+      utterance.lang = language === 'es' ? 'es-ES' : 'en-US';
       window.speechSynthesis.speak(utterance);
     }
+
+    setTimeout(() => {
+      setIsTransitioning(false);
+    }, 300);
   };
 
   // Play sound effect
@@ -77,50 +98,57 @@ export function CountingGame({ isDarkMode, isVibrant, onExit }: CountingGameProp
   // Handle number selection
   const handleNumberClick = (number: number) => {
     if (!currentItem) return;
+    setSelectedOption(number);
 
     if (number === itemCount) {
       // Correct answer
       playSound('success');
       setScore(score + 1);
-      setShowCelebration(true);
+      setShowCorrectNumber(true);
+      setIsItemsAnimating(true);
       
-      // Count out loud
+      // Celebration voice feedback
       if (soundEnabled) {
-        let count = 1;
-        const countInterval = setInterval(() => {
-          const utterance = new SpeechSynthesisUtterance(count.toString());
-          utterance.rate = 0.8;
-          utterance.pitch = 1.2;
-          window.speechSynthesis.speak(utterance);
-          
-          if (count === itemCount) {
-            clearInterval(countInterval);
-            setTimeout(() => {
-              const celebrationUtterance = new SpeechSynthesisUtterance(`Yes! There are ${itemCount} ${currentItem.name}s!`);
-              celebrationUtterance.rate = 0.8;
-              celebrationUtterance.pitch = 1.2;
-              window.speechSynthesis.speak(celebrationUtterance);
-            }, 1000);
-          }
-          count++;
-        }, 800);
+        const celebration = language === 'es'
+          ? '¡Excelente trabajo!'
+          : 'Great job!';
+        const utterance = new SpeechSynthesisUtterance(celebration);
+        utterance.rate = 0.8;
+        utterance.pitch = 1.2;
+        utterance.lang = language === 'es' ? 'es-ES' : 'en-US';
+        window.speechSynthesis.speak(utterance);
       }
 
-      // Move to next round after celebration
+      setShowCelebration(true);
+      
       setTimeout(() => {
+        setIsItemsAnimating(false);
         setShowCelebration(false);
-        generateNewRound();
-      }, itemCount * 800 + 3000);
+        if (questionNumber < totalQuestions) {
+          setQuestionNumber(prev => prev + 1);
+          generateNewRound();
+        }
+      }, 2000);
     } else {
       // Wrong answer
       playSound('wrong');
+      setIsOptionError(true);
       
       if (soundEnabled) {
-        const utterance = new SpeechSynthesisUtterance('Try counting again!');
+        const tryAgain = language === 'es'
+          ? 'Inténtalo de nuevo'
+          : 'Try again';
+        const utterance = new SpeechSynthesisUtterance(tryAgain);
         utterance.rate = 0.8;
         utterance.pitch = 1.2;
+        utterance.lang = language === 'es' ? 'es-ES' : 'en-US';
         window.speechSynthesis.speak(utterance);
       }
+
+      setTimeout(() => {
+        setIsOptionError(false);
+        setSelectedOption(null);
+      }, 500);
     }
   };
 
@@ -144,6 +172,17 @@ export function CountingGame({ isDarkMode, isVibrant, onExit }: CountingGameProp
           </button>
           
           <div className="flex items-center space-x-4">
+            {/* Progress Indicator */}
+            <div className={`
+              px-4 py-2 rounded-full font-bold
+              ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}
+              shadow-lg
+            `}>
+              {language === 'es'
+                ? `Pregunta ${questionNumber} de ${totalQuestions}`
+                : `Question ${questionNumber} of ${totalQuestions}`}
+            </div>
+
             <div className={`
               flex items-center space-x-2 px-4 py-2 rounded-full
               ${isDarkMode ? 'bg-gray-800' : 'bg-white'}
@@ -161,15 +200,31 @@ export function CountingGame({ isDarkMode, isVibrant, onExit }: CountingGameProp
           ${isDarkMode ? 'bg-gray-800' : 'bg-white'}
           shadow-xl
         `}>
+          {/* Prompt */}
+          <div className="text-center mb-8">
+            <h2 className={`
+              text-2xl font-bold font-comic
+              ${isDarkMode ? 'text-white' : 'text-gray-900'}
+            `}>
+              {language === 'es'
+                ? `¿Cuántos ${currentItem.name}s ves?`
+                : `How many ${currentItem.name}s do you see?`}
+            </h2>
+          </div>
+
           {/* Items Grid */}
-          <div className="grid grid-cols-3 gap-4 mb-8">
+          <div className={`
+            grid grid-cols-3 gap-4 mb-8
+            transition-opacity duration-300
+            ${isTransitioning ? 'opacity-0' : 'opacity-100'}
+          `}>
             {Array.from({ length: itemCount }).map((_, index) => (
               <div
                 key={index}
                 className={`
                   aspect-square rounded-xl overflow-hidden
-                  transform hover:scale-105
-                  transition-all duration-300
+                  transform transition-all duration-300
+                  ${isItemsAnimating ? 'animate-bounce' : 'hover:scale-105'}
                   shadow-lg
                 `}
               >
@@ -188,19 +243,28 @@ export function CountingGame({ isDarkMode, isVibrant, onExit }: CountingGameProp
               <button
                 key={index}
                 onClick={() => handleNumberClick(number)}
+                disabled={showCelebration}
                 className={`
                   w-24 h-24 rounded-2xl
                   flex items-center justify-center
                   text-4xl font-bold font-comic text-white
-                  transform hover:scale-110
-                  transition-all duration-300
+                  transform transition-all duration-300
                   ${isVibrant
                     ? 'bg-gradient-to-r from-purple-500 via-pink-500 to-red-500'
                     : isDarkMode
                       ? 'bg-gray-700'
                       : 'bg-purple-600'
                   }
+                  ${selectedOption === number && isOptionError
+                    ? 'animate-[shake_0.5s_ease-in-out] border-2 border-red-500'
+                    : 'hover:scale-110'
+                  }
+                  ${number === itemCount && showCorrectNumber
+                    ? 'ring-4 ring-green-500 scale-110'
+                    : ''
+                  }
                   shadow-lg
+                  disabled:opacity-50
                 `}
               >
                 {number}
@@ -240,7 +304,7 @@ export function CountingGame({ isDarkMode, isVibrant, onExit }: CountingGameProp
             <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-3xl">
               <div className="text-center">
                 <h3 className="text-4xl font-bold text-white mb-4">
-                  Perfect! 🎉
+                  {language === 'es' ? '¡Excelente! 🎉' : 'Great Job! 🎉'}
                 </h3>
                 <div className="flex justify-center space-x-4">
                   {Array.from({ length: 3 }).map((_, i) => (

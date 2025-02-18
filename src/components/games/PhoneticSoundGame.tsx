@@ -1,6 +1,7 @@
-import { gameContent } from '../../games/gameContent';
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Star, Volume2, Sparkles, Play, RefreshCw } from 'lucide-react';
+import { useGameAudio } from './GameAudioContext';
+import { gameContent } from '../../games/gameContent';
 
 const getLetterSounds = (language: string) => {
   return gameContent[language as keyof typeof gameContent].phonetics;
@@ -14,6 +15,7 @@ interface PhoneticSoundGameProps {
 }
 
 export function PhoneticSoundGame({ isDarkMode, isVibrant, onExit, language }: PhoneticSoundGameProps) {
+  const { soundEnabled, toggleSound, playGameSound, speakText } = useGameAudio();
   const [currentSound, setCurrentSound] = useState<typeof getLetterSounds extends (lang: string) => (infer T)[] ? T : never | null>(null);
   const [options, setOptions] = useState<string[]>([]);
   const [score, setScore] = useState(0);
@@ -21,13 +23,25 @@ export function PhoneticSoundGame({ isDarkMode, isVibrant, onExit, language }: P
   const [showHint, setShowHint] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [round, setRound] = useState(1);
+  const [totalRounds] = useState(5);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [selectedOption, setSelectedOption] = useState<string | null>(null);
+  const [isOptionError, setIsOptionError] = useState(false);
+  const [isLetterAnimating, setIsLetterAnimating] = useState(false);
+  const [showLetterOverlay, setShowLetterOverlay] = useState(false);
 
   useEffect(() => {
     generateNewRound();
   }, []);
 
   const generateNewRound = () => {
+    setIsTransitioning(true);
+    setShowHint(false);
+    setSelectedOption(null);
+    setAttempts(0);
+    setShowLetterOverlay(false);
+    
     const sounds = getLetterSounds(language);
     const newSound = sounds[Math.floor(Math.random() * sounds.length)];
     setCurrentSound(newSound);
@@ -42,9 +56,11 @@ export function PhoneticSoundGame({ isDarkMode, isVibrant, onExit, language }: P
     
     newOptions = newOptions.sort(() => Math.random() - 0.5);
     setOptions(newOptions);
-    setAttempts(0);
-    setShowHint(false);
-    setIsPlaying(false);
+
+    setTimeout(() => {
+      setIsTransitioning(false);
+      playLetterSound();
+    }, 300);
   };
 
   const playLetterSound = () => {
@@ -56,51 +72,61 @@ export function PhoneticSoundGame({ isDarkMode, isVibrant, onExit, language }: P
     utterance.text = `${currentSound.letter} says ${currentSound.sound}, as in ${currentSound.example}`;
     utterance.rate = 0.8;
     utterance.pitch = 1.2;
+    utterance.lang = language === 'es' ? 'es-ES' : 'en-US';
     
     utterance.onend = () => setIsPlaying(false);
     
     window.speechSynthesis.speak(utterance);
   };
 
-  const playSound = (type: 'success' | 'wrong') => {
-    if (!soundEnabled) return;
-
-    const sounds = {
-      success: 'https://cdn.pixabay.com/download/audio/2022/03/24/audio_805cb3c75d.mp3',
-      wrong: 'https://cdn.pixabay.com/download/audio/2022/03/24/audio_c8c8a73f04.mp3'
-    };
-
-    const audio = new Audio(sounds[type]);
-    audio.volume = type === 'success' ? 0.3 : 0.2;
-    audio.play();
-  };
-
   const handleLetterClick = (letter: string) => {
     if (!currentSound) return;
+    setSelectedOption(letter);
 
     if (letter === currentSound.letter) {
-      playSound('success');
+      playGameSound('success');
       setScore(score + 1);
       setShowCelebration(true);
+      setIsLetterAnimating(true);
+      setShowLetterOverlay(true);
       
-      const utterance = new SpeechSynthesisUtterance();
-      utterance.text = `Correct! ${currentSound.letter} says ${currentSound.sound}!`;
-      utterance.rate = 0.8;
-      utterance.pitch = 1.2;
-      window.speechSynthesis.speak(utterance);
+      if (soundEnabled) {
+        const celebration = language === 'es'
+          ? '¡Excelente trabajo!'
+          : 'Great job!';
+        speakText(celebration, language === 'es' ? 'es-ES' : 'en-US');
+      }
 
       setTimeout(() => {
+        setIsLetterAnimating(false);
         setShowCelebration(false);
-        generateNewRound();
+        if (round < totalRounds) {
+          setRound(prev => prev + 1);
+          generateNewRound();
+        }
       }, 2000);
     } else {
-      playSound('wrong');
+      playGameSound('error');
+      setIsOptionError(true);
+      
+      if (soundEnabled) {
+        const tryAgain = language === 'es'
+          ? 'Inténtalo de nuevo'
+          : 'Try again';
+        speakText(tryAgain, language === 'es' ? 'es-ES' : 'en-US');
+      }
+      
       const newAttempts = attempts + 1;
       setAttempts(newAttempts);
       
       if (newAttempts >= 3) {
         setShowHint(true);
       }
+
+      setTimeout(() => {
+        setIsOptionError(false);
+        setSelectedOption(null);
+      }, 500);
     }
   };
 
@@ -109,6 +135,7 @@ export function PhoneticSoundGame({ isDarkMode, isVibrant, onExit, language }: P
   return (
     <div className="min-h-screen pt-20 pb-8 px-4">
       <div className="max-w-4xl mx-auto">
+        {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <button
             onClick={onExit}
@@ -123,6 +150,17 @@ export function PhoneticSoundGame({ isDarkMode, isVibrant, onExit, language }: P
           </button>
           
           <div className="flex items-center space-x-4">
+            {/* Progress Indicator */}
+            <div className={`
+              px-4 py-2 rounded-full font-bold
+              ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}
+              shadow-lg
+            `}>
+              {language === 'es'
+                ? `Ronda ${round} de ${totalRounds}`
+                : `Round ${round} of ${totalRounds}`}
+            </div>
+
             <div className={`
               flex items-center space-x-2 px-4 py-2 rounded-full
               ${isDarkMode ? 'bg-gray-800' : 'bg-white'}
@@ -134,11 +172,13 @@ export function PhoneticSoundGame({ isDarkMode, isVibrant, onExit, language }: P
           </div>
         </div>
 
+        {/* Game Area */}
         <div className={`
           relative p-8 rounded-3xl
           ${isDarkMode ? 'bg-gray-800' : 'bg-white'}
           shadow-xl
         `}>
+          {/* Sound Button */}
           <div className="flex justify-center mb-12">
             <button
               onClick={playLetterSound}
@@ -151,40 +191,61 @@ export function PhoneticSoundGame({ isDarkMode, isVibrant, onExit, language }: P
                     ? 'bg-gray-700'
                     : 'bg-purple-600'
                 }
-                transform hover:scale-110
-                transition-all duration-300
+                transform transition-all duration-300
+                hover:scale-110
                 disabled:opacity-50
                 shadow-lg
+                ${isPlaying ? 'animate-pulse' : ''}
               `}
             >
               <Play className={`
                 w-16 h-16 mx-auto text-white
-                ${isPlaying ? 'animate-pulse' : ''}
+                ${isPlaying ? 'opacity-50' : 'opacity-100'}
               `} />
-              {isPlaying && (
-                <div className="absolute inset-0 rounded-full border-4 border-white border-t-transparent animate-spin"></div>
+              
+              {/* Target Letter Overlay */}
+              {showLetterOverlay && (
+                <div className={`
+                  absolute inset-0 flex items-center justify-center
+                  bg-black/50 backdrop-blur-sm rounded-full
+                  text-4xl font-bold text-white font-comic
+                  transform transition-all duration-300
+                `}>
+                  {currentSound.letter}
+                </div>
               )}
             </button>
           </div>
 
-          <div className="flex justify-center gap-6">
+          {/* Letter Options */}
+          <div className={`
+            grid grid-cols-3 gap-6
+            transition-opacity duration-300
+            ${isTransitioning ? 'opacity-0' : 'opacity-100'}
+          `}>
             {options.map((letter, index) => (
               <button
                 key={index}
                 onClick={() => handleLetterClick(letter)}
                 className={`
-                  w-24 h-24 rounded-2xl
+                  aspect-square rounded-2xl
                   flex items-center justify-center
-                  text-4xl font-bold font-comic
-                  transform hover:scale-110
-                  transition-all duration-300
+                  text-4xl font-bold font-comic text-white
+                  transform transition-all duration-300
                   ${isVibrant
-                    ? 'bg-gradient-to-r from-purple-500 via-pink-500 to-red-500 text-white'
+                    ? 'bg-gradient-to-r from-purple-500 via-pink-500 to-red-500'
                     : isDarkMode
-                      ? 'bg-gray-700 text-white'
-                      : 'bg-purple-600 text-white'
+                      ? 'bg-gray-700'
+                      : 'bg-purple-600'
                   }
-                  ${showHint && letter === currentSound.letter ? 'animate-pulse ring-4 ring-yellow-400' : ''}
+                  ${selectedOption === letter && isOptionError
+                    ? 'animate-[shake_0.5s_ease-in-out] border-2 border-red-500'
+                    : 'hover:scale-110'
+                  }
+                  ${letter === currentSound.letter && showHint
+                    ? 'ring-4 ring-yellow-400 animate-pulse'
+                    : ''
+                  }
                   shadow-lg
                 `}
               >
@@ -193,6 +254,7 @@ export function PhoneticSoundGame({ isDarkMode, isVibrant, onExit, language }: P
             ))}
           </div>
 
+          {/* Controls */}
           <div className="flex justify-center space-x-4 mt-8">
             <button
               onClick={generateNewRound}
@@ -207,7 +269,7 @@ export function PhoneticSoundGame({ isDarkMode, isVibrant, onExit, language }: P
             </button>
             
             <button
-              onClick={() => setSoundEnabled(!soundEnabled)}
+              onClick={toggleSound}
               className={`
                 p-3 rounded-full
                 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}
@@ -219,15 +281,13 @@ export function PhoneticSoundGame({ isDarkMode, isVibrant, onExit, language }: P
             </button>
           </div>
 
+          {/* Celebration Overlay */}
           {showCelebration && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-3xl">
               <div className="text-center">
                 <h3 className="text-4xl font-bold text-white mb-4">
-                  Excellent! 🎉
+                  {language === 'es' ? '¡Excelente! 🎉' : 'Great Job! 🎉'}
                 </h3>
-                <p className="text-2xl text-white mb-4">
-                  {currentSound.letter} says "{currentSound.sound}"!
-                </p>
                 <div className="flex justify-center space-x-4">
                   {Array.from({ length: 3 }).map((_, i) => (
                     <Sparkles

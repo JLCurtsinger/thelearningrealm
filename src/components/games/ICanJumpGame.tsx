@@ -15,6 +15,12 @@ export function ICanJumpGame({ isDarkMode, isVibrant, onExit, language }: ICanJu
   const [score, setScore] = useState(0);
   const [showCelebration, setShowCelebration] = useState(false);
   const [showError, setShowError] = useState(false);
+  const [round, setRound] = useState(1);
+  const [totalRounds] = useState(5);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [selectedCharacter, setSelectedCharacter] = useState<number | null>(null);
+  const [isCharacterAnimating, setIsCharacterAnimating] = useState(false);
+  const [showActionLabel, setShowActionLabel] = useState(false);
 
   useEffect(() => {
     if (soundEnabled && !isStarted) {
@@ -27,50 +33,67 @@ export function ICanJumpGame({ isDarkMode, isVibrant, onExit, language }: ICanJu
     }
   }, [isStarted]);
 
-  const handleCharacterClick = (isJumping: boolean) => {
+  const handleCharacterClick = (isJumping: boolean, index: number) => {
+    setSelectedCharacter(index);
+
     if (isJumping) {
       playGameSound('success');
+      setIsCharacterAnimating(true);
+      setShowActionLabel(true);
 
       if (soundEnabled) {
-        speakText(
-          language === 'es' 
-            ? '¡Excelente trabajo!' 
-            : 'Great job!',
-          language === 'es' ? 'es-ES' : 'en-US'
-        );
+        const celebration = language === 'es' 
+          ? '¡Excelente trabajo!' 
+          : 'Great job!';
+        speakText(celebration, language === 'es' ? 'es-ES' : 'en-US');
       }
 
       setScore(score + 1);
       setShowCelebration(true);
+      
       setTimeout(() => {
+        setIsCharacterAnimating(false);
         setShowCelebration(false);
+        setShowActionLabel(false);
+        if (round < totalRounds) {
+          setIsTransitioning(true);
+          setTimeout(() => {
+            setRound(prev => prev + 1);
+            setSelectedCharacter(null);
+            setIsTransitioning(false);
+          }, 300);
+        }
       }, 2000);
     } else {
       playGameSound('error');
+      setShowError(true);
       
       if (soundEnabled) {
-        speakText(
-          language === 'es' 
-            ? '¡Inténtalo de nuevo!' 
-            : 'Try again!',
-          language === 'es' ? 'es-ES' : 'en-US'
-        );
+        const tryAgain = language === 'es' 
+          ? '¡Inténtalo de nuevo!' 
+          : 'Try again!';
+        speakText(tryAgain, language === 'es' ? 'es-ES' : 'en-US');
       }
 
-      setShowError(true);
-      setTimeout(() => setShowError(false), 1000);
+      setTimeout(() => {
+        setShowError(false);
+        setSelectedCharacter(null);
+      }, 1000);
     }
   };
 
-  // Animated character component
-  const Character = ({ isJumping = false, onClick }: { isJumping?: boolean; onClick?: () => void }) => (
+  // Animated character component with improved animations
+  const Character = ({ isJumping = false, onClick, index }: { isJumping?: boolean; onClick?: () => void; index: number }) => (
     <button
       onClick={onClick}
+      disabled={showCelebration}
       className={`
         relative w-48 h-48
         transform transition-all duration-300
         hover:scale-105 focus:outline-none
-        ${isJumping ? 'animate-bounce' : ''}
+        ${selectedCharacter === index && showError ? 'animate-[shake_0.5s_ease-in-out]' : ''}
+        ${isJumping && isCharacterAnimating ? 'animate-bounce' : ''}
+        disabled:opacity-50
       `}
     >
       <div className={`
@@ -82,14 +105,28 @@ export function ICanJumpGame({ isDarkMode, isVibrant, onExit, language }: ICanJu
             : 'bg-purple-600'
         }
         rounded-full
+        shadow-lg
       `}>
-        {/* Simple character face */}
+        {/* Character face */}
         <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
           <div className="flex space-x-4 mb-4">
             <div className="w-4 h-4 rounded-full bg-white"></div>
             <div className="w-4 h-4 rounded-full bg-white"></div>
           </div>
           <div className="w-8 h-2 bg-white rounded-full"></div>
+
+          {/* Action Label */}
+          {isJumping && showActionLabel && (
+            <div className={`
+              absolute -top-8 left-1/2 transform -translate-x-1/2
+              bg-black/50 backdrop-blur-sm
+              text-white text-center px-4 py-2 rounded-full
+              font-bold text-sm
+              transition-opacity duration-300
+            `}>
+              {language === 'es' ? '¡Saltando!' : 'Jump!'}
+            </div>
+          )}
         </div>
       </div>
     </button>
@@ -100,13 +137,29 @@ export function ICanJumpGame({ isDarkMode, isVibrant, onExit, language }: ICanJu
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
-          <div className={`
-            flex items-center space-x-2 px-4 py-2 rounded-full
-            ${isDarkMode ? 'bg-gray-800' : 'bg-white'}
-            shadow-lg
-          `}>
-            <Star className="w-5 h-5 text-yellow-400" />
-            <span className="font-bold">{score}</span>
+          <div className="flex items-center space-x-4">
+            {/* Progress Indicator */}
+            {isStarted && (
+              <div className={`
+                px-4 py-2 rounded-full font-bold
+                ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}
+                shadow-lg
+                transition-opacity duration-300
+              `}>
+                {language === 'es'
+                  ? `Ronda ${round} de ${totalRounds}`
+                  : `Round ${round} of ${totalRounds}`}
+              </div>
+            )}
+
+            <div className={`
+              flex items-center space-x-2 px-4 py-2 rounded-full
+              ${isDarkMode ? 'bg-gray-800' : 'bg-white'}
+              shadow-lg
+            `}>
+              <Star className="w-5 h-5 text-yellow-400" />
+              <span className="font-bold">{score}</span>
+            </div>
           </div>
 
           <button
@@ -129,19 +182,28 @@ export function ICanJumpGame({ isDarkMode, isVibrant, onExit, language }: ICanJu
           shadow-xl
         `}>
           {!isStarted ? (
-            // Title Screen
-            <div className="flex flex-col items-center space-y-8">
+            // Title Screen with enhanced fade-in
+            <div className={`
+              flex flex-col items-center space-y-8
+              animate-fade-in
+            `}>
               <h1 className={`
-                text-4xl font-bold text-center
+                text-4xl font-bold text-center font-comic
                 ${isDarkMode ? 'text-white' : 'text-gray-900'}
               `}>
                 {language === 'es' ? '¡Puedo Saltar!' : 'I Jump Up and Down!'}
               </h1>
 
-              <Character isJumping={true} />
+              <Character isJumping={true} index={0} />
 
               <button
-                onClick={() => setIsStarted(true)}
+                onClick={() => {
+                  setIsTransitioning(true);
+                  setTimeout(() => {
+                    setIsStarted(true);
+                    setIsTransitioning(false);
+                  }, 300);
+                }}
                 className={`
                   px-8 py-4 rounded-xl
                   flex items-center gap-2
@@ -152,6 +214,7 @@ export function ICanJumpGame({ isDarkMode, isVibrant, onExit, language }: ICanJu
                     ? 'bg-gradient-to-r from-purple-500 via-pink-500 to-red-500'
                     : 'bg-purple-600 hover:bg-purple-700'
                   }
+                  shadow-lg
                 `}
               >
                 <Play className="w-6 h-6" />
@@ -162,20 +225,25 @@ export function ICanJumpGame({ isDarkMode, isVibrant, onExit, language }: ICanJu
             // Game Screen
             <>
               <h2 className={`
-                text-2xl font-bold text-center mb-12
+                text-2xl font-bold text-center mb-12 font-comic
                 ${isDarkMode ? 'text-white' : 'text-gray-900'}
               `}>
                 {language === 'es' ? '¿Quién está saltando?' : 'Who is jumping?'}
               </h2>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-12 justify-items-center">
+              <div className={`
+                grid grid-cols-1 md:grid-cols-2 gap-12 justify-items-center
+                transition-opacity duration-300
+                ${isTransitioning ? 'opacity-0' : 'opacity-100'}
+              `}>
                 {[true, false]
                   .sort(() => Math.random() - 0.5)
                   .map((isJumping, index) => (
                     <Character
                       key={index}
                       isJumping={isJumping}
-                      onClick={() => handleCharacterClick(isJumping)}
+                      onClick={() => handleCharacterClick(isJumping, index)}
+                      index={index}
                     />
                   ))}
               </div>

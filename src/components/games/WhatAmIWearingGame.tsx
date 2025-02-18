@@ -69,12 +69,16 @@ export function WhatAmIWearingGame({ isDarkMode, isVibrant, onExit, language }: 
   const [showCelebration, setShowCelebration] = useState(false);
   const [messages, setMessages] = useState<Array<{ text: string; isUser: boolean }>>([]);
   const [userInput, setUserInput] = useState('');
+  const [isInputError, setIsInputError] = useState(false);
+  const [isItemAnimating, setIsItemAnimating] = useState(false);
+  const [showItemLabel, setShowItemLabel] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   useEffect(() => {
     if (soundEnabled) {
       const initialPrompt = language === 'es' 
-        ? "¡Hola! ¿Qué prenda de vestir es esta?"
-        : "Hi! What clothing item is this?";
+        ? "¿Qué prenda de vestir es esta?"
+        : "What clothing item is this?";
       setMessages([{ text: initialPrompt, isUser: false }]);
       speakText(initialPrompt, language === 'es' ? 'es-ES' : 'en-US');
     }
@@ -84,38 +88,50 @@ export function WhatAmIWearingGame({ isDarkMode, isVibrant, onExit, language }: 
     if (!userInput.trim()) return;
 
     const item = clothing[currentItem];
-    const userMessage = { text: userInput, isUser: true };
+    const inputValue = userInput; // Store input value before clearing
+    setUserInput(''); // Clear input immediately
+
+    const userMessage = { text: inputValue, isUser: true };
     setMessages(prev => [...prev, userMessage]);
-    setUserInput('');
 
     setTimeout(() => {
       if (gameState === 'name') {
-        const isCorrect = userInput.toLowerCase().includes(
+        const isCorrect = inputValue.toLowerCase().includes(
           item.name[language as keyof typeof item.name].toLowerCase()
         );
 
         if (isCorrect) {
           playGameSound('success');
+          setIsItemAnimating(true);
+          setShowItemLabel(true);
           
           const response = item.responses.nameCorrect[language as keyof typeof item.responses.nameCorrect];
           setMessages(prev => [...prev, { text: response, isUser: false }]);
           speakText(response, language === 'es' ? 'es-ES' : 'en-US');
           
           setGameState('color');
+          
+          setTimeout(() => {
+            setIsItemAnimating(false);
+          }, 1000);
         } else {
           playGameSound('error');
+          setIsInputError(true);
           
           const tryAgain = language === 'es' ? '¡Inténtalo de nuevo!' : 'Try again!';
           setMessages(prev => [...prev, { text: tryAgain, isUser: false }]);
           speakText(tryAgain, language === 'es' ? 'es-ES' : 'en-US');
+          
+          setTimeout(() => setIsInputError(false), 500);
         }
       } else if (gameState === 'color') {
-        const isCorrect = userInput.toLowerCase().includes(
+        const isCorrect = inputValue.toLowerCase().includes(
           item.color[language as keyof typeof item.color].toLowerCase()
         );
 
         if (isCorrect) {
           playGameSound('success');
+          setIsItemAnimating(true);
           
           const response = item.responses.colorCorrect[language as keyof typeof item.responses.colorCorrect];
           setMessages(prev => [...prev, { text: response, isUser: false }]);
@@ -125,15 +141,21 @@ export function WhatAmIWearingGame({ isDarkMode, isVibrant, onExit, language }: 
           setShowCelebration(true);
           
           setTimeout(() => {
+            setIsItemAnimating(false);
             setShowCelebration(false);
             if (currentItem < clothing.length - 1) {
-              setCurrentItem(prev => prev + 1);
-              setGameState('name');
-              const newPrompt = language === 'es' 
-                ? "¿Qué prenda de vestir es esta?"
-                : "What clothing item is this?";
-              setMessages([{ text: newPrompt, isUser: false }]);
-              speakText(newPrompt, language === 'es' ? 'es-ES' : 'en-US');
+              setIsTransitioning(true);
+              setTimeout(() => {
+                setCurrentItem(prev => prev + 1);
+                setGameState('name');
+                setShowItemLabel(false);
+                const newPrompt = language === 'es' 
+                  ? "¿Qué prenda de vestir es esta?"
+                  : "What clothing item is this?";
+                setMessages([{ text: newPrompt, isUser: false }]);
+                speakText(newPrompt, language === 'es' ? 'es-ES' : 'en-US');
+                setIsTransitioning(false);
+              }, 500);
             } else {
               const finalMessage = language === 'es'
                 ? "¡Felicitaciones! ¡Has completado el juego!"
@@ -144,10 +166,13 @@ export function WhatAmIWearingGame({ isDarkMode, isVibrant, onExit, language }: 
           }, 2000);
         } else {
           playGameSound('error');
+          setIsInputError(true);
           
           const tryAgain = language === 'es' ? '¡Inténtalo de nuevo!' : 'Try again!';
           setMessages(prev => [...prev, { text: tryAgain, isUser: false }]);
           speakText(tryAgain, language === 'es' ? 'es-ES' : 'en-US');
+          
+          setTimeout(() => setIsInputError(false), 500);
         }
       }
     }, 500);
@@ -158,13 +183,26 @@ export function WhatAmIWearingGame({ isDarkMode, isVibrant, onExit, language }: 
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
-          <div className={`
-            flex items-center space-x-2 px-4 py-2 rounded-full
-            ${isDarkMode ? 'bg-gray-800' : 'bg-white'}
-            shadow-lg
-          `}>
-            <Star className="w-5 h-5 text-yellow-400" />
-            <span className="font-bold">{score}</span>
+          <div className="flex items-center space-x-4">
+            {/* Progress Indicator */}
+            <div className={`
+              px-4 py-2 rounded-full font-bold
+              ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}
+              shadow-lg
+            `}>
+              {language === 'es' 
+                ? `Prenda ${currentItem + 1} de ${clothing.length}`
+                : `Item ${currentItem + 1} of ${clothing.length}`}
+            </div>
+
+            <div className={`
+              flex items-center space-x-2 px-4 py-2 rounded-full
+              ${isDarkMode ? 'bg-gray-800' : 'bg-white'}
+              shadow-lg
+            `}>
+              <Star className="w-5 h-5 text-yellow-400" />
+              <span className="font-bold">{score}</span>
+            </div>
           </div>
 
           <button
@@ -188,12 +226,28 @@ export function WhatAmIWearingGame({ isDarkMode, isVibrant, onExit, language }: 
         `}>
           {/* Clothing Image */}
           <div className="flex justify-center mb-8">
-            <div className="relative w-48 h-48 rounded-2xl overflow-hidden shadow-lg">
+            <div className={`
+              relative w-48 h-48 rounded-2xl overflow-hidden shadow-lg
+              transition-opacity duration-500
+              ${isTransitioning ? 'opacity-0' : 'opacity-100'}
+              ${isItemAnimating ? 'animate-bounce' : ''}
+            `}>
               <img
                 src={clothing[currentItem].image}
                 alt="Clothing item"
                 className="w-full h-full object-cover"
               />
+              {showItemLabel && (
+                <div className={`
+                  absolute bottom-0 left-0 right-0
+                  bg-black/50 backdrop-blur-sm
+                  text-white text-center py-2 font-bold
+                  transform transition-all duration-300
+                  ${showItemLabel ? 'translate-y-0' : 'translate-y-full'}
+                `}>
+                  {clothing[currentItem].name[language as keyof typeof clothing[0]['name']]}
+                </div>
+              )}
             </div>
           </div>
 
@@ -208,13 +262,15 @@ export function WhatAmIWearingGame({ isDarkMode, isVibrant, onExit, language }: 
               >
                 <div className={`
                   max-w-[80%] px-4 py-2 rounded-xl
+                  transform transition-all duration-300
+                  hover:scale-102
                   ${message.isUser
                     ? isVibrant
-                      ? 'bg-gradient-to-r from-purple-500 via-pink-500 to-red-500 text-white'
-                      : 'bg-purple-600 text-white'
+                      ? 'bg-gradient-to-r from-purple-500 via-pink-500 to-red-500 text-white shadow-lg'
+                      : 'bg-purple-600 text-white shadow-lg'
                     : isDarkMode
-                      ? 'bg-gray-700 text-white'
-                      : 'bg-gray-100 text-gray-900'
+                      ? 'bg-gray-700 text-white shadow-md'
+                      : 'bg-gray-100 text-gray-900 shadow-md'
                   }
                 `}>
                   {message.text}
@@ -233,9 +289,14 @@ export function WhatAmIWearingGame({ isDarkMode, isVibrant, onExit, language }: 
               placeholder={language === 'es' ? "Escribe tu respuesta..." : "Type your answer..."}
               className={`
                 flex-1 px-4 py-3 rounded-xl
+                transition-all duration-300
                 ${isDarkMode
                   ? 'bg-gray-700 text-white placeholder-gray-400'
                   : 'bg-gray-100 text-gray-900 placeholder-gray-500'
+                }
+                ${isInputError
+                  ? 'border-2 border-red-500 animate-[shake_0.5s_ease-in-out]'
+                  : 'border-2 border-transparent'
                 }
                 focus:outline-none focus:ring-2 focus:ring-purple-400
               `}
@@ -251,6 +312,7 @@ export function WhatAmIWearingGame({ isDarkMode, isVibrant, onExit, language }: 
                 text-white
                 transform hover:scale-105
                 transition-all duration-300
+                shadow-lg
               `}
             >
               <Send className="w-6 h-6" />

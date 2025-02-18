@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Star, Volume2, Sparkles, RefreshCw } from 'lucide-react';
+import { useGameAudio } from './GameAudioContext';
 
 interface EmotionMatchGameProps {
   isDarkMode: boolean;
   isVibrant: boolean;
   onExit: () => void;
+  language: string;
 }
 
 // Emotion data with DiceBear avatars
@@ -16,12 +18,19 @@ const EMOTIONS = [
   { name: 'excited', prompt: 'Find the excited face!', seed: 'excited&eyes=stars&mouth=laugh' }
 ];
 
-export function EmotionMatchGame({ isDarkMode, isVibrant, onExit }: EmotionMatchGameProps) {
+export function EmotionMatchGame({ isDarkMode, isVibrant, onExit, language }: EmotionMatchGameProps) {
+  const { soundEnabled, toggleSound, playGameSound, speakText } = useGameAudio();
   const [currentEmotion, setCurrentEmotion] = useState<typeof EMOTIONS[0] | null>(null);
   const [options, setOptions] = useState<string[]>([]);
   const [score, setScore] = useState(0);
   const [showCelebration, setShowCelebration] = useState(false);
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [level, setLevel] = useState(1);
+  const [totalLevels] = useState(5);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [selectedOption, setSelectedOption] = useState<string | null>(null);
+  const [isOptionError, setIsOptionError] = useState(false);
+  const [showEmotionLabel, setShowEmotionLabel] = useState(false);
+  const [isEmotionAnimating, setIsEmotionAnimating] = useState(false);
 
   // Initialize game
   useEffect(() => {
@@ -30,6 +39,10 @@ export function EmotionMatchGame({ isDarkMode, isVibrant, onExit }: EmotionMatch
 
   // Generate a new round
   const generateNewRound = () => {
+    setIsTransitioning(true);
+    setShowEmotionLabel(false);
+    setSelectedOption(null);
+    
     // Select random emotion
     const newEmotion = EMOTIONS[Math.floor(Math.random() * EMOTIONS.length)];
     setCurrentEmotion(newEmotion);
@@ -49,60 +62,63 @@ export function EmotionMatchGame({ isDarkMode, isVibrant, onExit }: EmotionMatch
 
     // Speak the prompt
     if (soundEnabled) {
-      const utterance = new SpeechSynthesisUtterance(newEmotion.prompt);
-      utterance.rate = 0.8;
-      utterance.pitch = 1.2;
-      window.speechSynthesis.speak(utterance);
+      const prompt = language === 'es'
+        ? `¿Puedes encontrar la cara ${newEmotion.name}?`
+        : newEmotion.prompt;
+      speakText(prompt, language === 'es' ? 'es-ES' : 'en-US');
     }
-  };
 
-  // Play sound effect
-  const playSound = (type: 'success' | 'wrong') => {
-    if (!soundEnabled) return;
-
-    const sounds = {
-      success: 'https://cdn.pixabay.com/download/audio/2022/03/24/audio_805cb3c75d.mp3',
-      wrong: 'https://cdn.pixabay.com/download/audio/2022/03/24/audio_c8c8a73f04.mp3'
-    };
-
-    const audio = new Audio(sounds[type]);
-    audio.volume = type === 'success' ? 0.3 : 0.2;
-    audio.play();
+    setTimeout(() => {
+      setIsTransitioning(false);
+    }, 300);
   };
 
   // Handle emotion selection
   const handleEmotionClick = (emotion: string) => {
     if (!currentEmotion) return;
+    setSelectedOption(emotion);
 
     if (emotion === currentEmotion.name) {
       // Correct answer
-      playSound('success');
+      playGameSound('success');
       setScore(score + 1);
-      setShowCelebration(true);
+      setShowEmotionLabel(true);
+      setIsEmotionAnimating(true);
       
       // Celebration voice feedback
       if (soundEnabled) {
-        const utterance = new SpeechSynthesisUtterance('Great job! You found the ' + currentEmotion.name + ' face!');
-        utterance.rate = 0.8;
-        utterance.pitch = 1.2;
-        window.speechSynthesis.speak(utterance);
+        const celebration = language === 'es'
+          ? '¡Excelente trabajo!'
+          : 'Great job!';
+        speakText(celebration, language === 'es' ? 'es-ES' : 'en-US');
       }
 
-      // Move to next round after celebration
+      setShowCelebration(true);
+      
       setTimeout(() => {
+        setIsEmotionAnimating(false);
         setShowCelebration(false);
-        generateNewRound();
+        if (level < totalLevels) {
+          setLevel(prev => prev + 1);
+          generateNewRound();
+        }
       }, 2000);
     } else {
       // Wrong answer
-      playSound('wrong');
+      playGameSound('error');
+      setIsOptionError(true);
       
       if (soundEnabled) {
-        const utterance = new SpeechSynthesisUtterance('Try again!');
-        utterance.rate = 0.8;
-        utterance.pitch = 1.2;
-        window.speechSynthesis.speak(utterance);
+        const tryAgain = language === 'es'
+          ? 'Inténtalo de nuevo'
+          : 'Try again';
+        speakText(tryAgain, language === 'es' ? 'es-ES' : 'en-US');
       }
+
+      setTimeout(() => {
+        setIsOptionError(false);
+        setSelectedOption(null);
+      }, 500);
     }
   };
 
@@ -126,6 +142,17 @@ export function EmotionMatchGame({ isDarkMode, isVibrant, onExit }: EmotionMatch
           </button>
           
           <div className="flex items-center space-x-4">
+            {/* Progress Indicator */}
+            <div className={`
+              px-4 py-2 rounded-full font-bold
+              ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}
+              shadow-lg
+            `}>
+              {language === 'es'
+                ? `Nivel ${level} de ${totalLevels}`
+                : `Level ${level} of ${totalLevels}`}
+            </div>
+
             <div className={`
               flex items-center space-x-2 px-4 py-2 rounded-full
               ${isDarkMode ? 'bg-gray-800' : 'bg-white'}
@@ -145,39 +172,73 @@ export function EmotionMatchGame({ isDarkMode, isVibrant, onExit }: EmotionMatch
         `}>
           {/* Prompt */}
           <div className="text-center mb-8">
-            <h2 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              {currentEmotion.prompt}
+            <h2 className={`
+              text-2xl font-bold font-comic
+              ${isDarkMode ? 'text-white' : 'text-gray-900'}
+            `}>
+              {language === 'es'
+                ? `¿Puedes encontrar la cara ${currentEmotion.name}?`
+                : currentEmotion.prompt}
             </h2>
           </div>
 
           {/* Emotion Options */}
-          <div className="grid grid-cols-3 gap-6">
+          <div className={`
+            grid grid-cols-3 gap-6
+            transition-opacity duration-300
+            ${isTransitioning ? 'opacity-0' : 'opacity-100'}
+          `}>
             {options.map((emotion, index) => {
               const emotionData = EMOTIONS.find(e => e.name === emotion);
               return (
                 <button
                   key={index}
                   onClick={() => handleEmotionClick(emotion)}
+                  disabled={showCelebration}
                   className={`
                     aspect-square rounded-2xl
                     flex items-center justify-center
-                    transform hover:scale-110
-                    transition-all duration-300
+                    transform transition-all duration-300
                     ${isVibrant
                       ? 'bg-gradient-to-r from-purple-500 via-pink-500 to-red-500'
                       : isDarkMode
                         ? 'bg-gray-700'
                         : 'bg-purple-600'
                     }
+                    ${selectedOption === emotion && isOptionError
+                      ? 'animate-[shake_0.5s_ease-in-out] border-2 border-red-500'
+                      : 'hover:scale-110'
+                    }
+                    ${emotion === currentEmotion.name && showEmotionLabel
+                      ? 'ring-4 ring-green-500 scale-110'
+                      : ''
+                    }
                     shadow-lg
                     overflow-hidden
+                    disabled:opacity-50
+                    relative
                   `}
                 >
                   <img
                     src={`https://api.dicebear.com/7.x/bottts/svg?seed=${emotionData?.seed || ''}&backgroundColor=transparent`}
                     alt={emotion}
-                    className="w-full h-full p-4"
+                    className={`
+                      w-full h-full p-4
+                      ${emotion === currentEmotion.name && isEmotionAnimating ? 'animate-bounce' : ''}
+                    `}
                   />
+                  
+                  {/* Emotion Label Overlay */}
+                  {emotion === currentEmotion.name && showEmotionLabel && (
+                    <div className={`
+                      absolute bottom-0 left-0 right-0
+                      bg-black/50 backdrop-blur-sm
+                      text-white text-center py-2 font-bold
+                      transform transition-all duration-300
+                    `}>
+                      {emotion}
+                    </div>
+                  )}
                 </button>
               );
             })}
@@ -198,7 +259,7 @@ export function EmotionMatchGame({ isDarkMode, isVibrant, onExit }: EmotionMatch
             </button>
             
             <button
-              onClick={() => setSoundEnabled(!soundEnabled)}
+              onClick={toggleSound}
               className={`
                 p-3 rounded-full
                 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}
@@ -215,7 +276,7 @@ export function EmotionMatchGame({ isDarkMode, isVibrant, onExit }: EmotionMatch
             <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-3xl">
               <div className="text-center">
                 <h3 className="text-4xl font-bold text-white mb-4">
-                  Wonderful! 🎉
+                  {language === 'es' ? '¡Excelente! 🎉' : 'Great Job! 🎉'}
                 </h3>
                 <div className="flex justify-center space-x-4">
                   {Array.from({ length: 3 }).map((_, i) => (

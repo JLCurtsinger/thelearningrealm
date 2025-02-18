@@ -45,13 +45,22 @@ export function WordBuilderGame({ isDarkMode, isVibrant, onExit, language }: Wor
   const [score, setScore] = useState(0);
   const [showCelebration, setShowCelebration] = useState(false);
   const [showError, setShowError] = useState(false);
+  const [round, setRound] = useState(1);
+  const [totalRounds] = useState(5);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [isWordAnimating, setIsWordAnimating] = useState(false);
+  const [showWordOverlay, setShowWordOverlay] = useState(false);
+  const [selectedLetterIndex, setSelectedLetterIndex] = useState<number | null>(null);
 
   useEffect(() => {
     generateNewWord();
   }, []);
 
   const generateNewWord = () => {
+    setIsTransitioning(true);
     setSelectedLetters([]);
+    setShowWordOverlay(false);
+    
     const word = words[currentWord].word;
     
     // Always include all letters needed for the word
@@ -80,13 +89,19 @@ export function WordBuilderGame({ isDarkMode, isVibrant, onExit, language }: Wor
         : `Can you spell ${words[currentWord].translations.en}?`;
       speakText(prompt, language === 'es' ? 'es-ES' : 'en-US');
     }
+
+    setTimeout(() => {
+      setIsTransitioning(false);
+    }, 300);
   };
 
   const handleLetterClick = (letter: string, index: number) => {
     playGameSound('click');
+    setSelectedLetterIndex(index);
     
     // Add letter to selected letters
-    setSelectedLetters([...selectedLetters, letter]);
+    const newSelectedLetters = [...selectedLetters, letter];
+    setSelectedLetters(newSelectedLetters);
     
     // Remove letter from available letters
     const newAvailable = [...availableLetters];
@@ -94,11 +109,15 @@ export function WordBuilderGame({ isDarkMode, isVibrant, onExit, language }: Wor
     setAvailableLetters(newAvailable);
 
     // Check if word is complete
-    const newWord = [...selectedLetters, letter].join('');
+    const newWord = newSelectedLetters.join('');
     if (newWord.length === words[currentWord].word.length) {
       if (newWord === words[currentWord].word) {
         // Correct word
         playGameSound('success');
+        setScore(score + 1);
+        setShowCelebration(true);
+        setIsWordAnimating(true);
+        setShowWordOverlay(true);
         
         if (soundEnabled) {
           const celebration = language === 'es'
@@ -106,20 +125,20 @@ export function WordBuilderGame({ isDarkMode, isVibrant, onExit, language }: Wor
             : 'Great job!';
           speakText(celebration, language === 'es' ? 'es-ES' : 'en-US');
         }
-
-        setScore(score + 1);
-        setShowCelebration(true);
         
         setTimeout(() => {
+          setIsWordAnimating(false);
           setShowCelebration(false);
-          if (currentWord < words.length - 1) {
-            setCurrentWord(prev => prev + 1);
+          if (round < totalRounds) {
+            setRound(prev => prev + 1);
+            setCurrentWord((currentWord + 1) % words.length);
             generateNewWord();
           }
         }, 2000);
       } else {
         // Wrong word
         playGameSound('error');
+        setShowError(true);
         
         if (soundEnabled) {
           const tryAgain = language === 'es'
@@ -128,10 +147,10 @@ export function WordBuilderGame({ isDarkMode, isVibrant, onExit, language }: Wor
           speakText(tryAgain, language === 'es' ? 'es-ES' : 'en-US');
         }
 
-        setShowError(true);
         setTimeout(() => {
           setShowError(false);
           setSelectedLetters([]);
+          setSelectedLetterIndex(null);
           generateNewWord();
         }, 1000);
       }
@@ -156,6 +175,17 @@ export function WordBuilderGame({ isDarkMode, isVibrant, onExit, language }: Wor
           </button>
           
           <div className="flex items-center space-x-4">
+            {/* Progress Indicator */}
+            <div className={`
+              px-4 py-2 rounded-full font-bold
+              ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}
+              shadow-lg
+            `}>
+              {language === 'es'
+                ? `Palabra ${round} de ${totalRounds}`
+                : `Word ${round} of ${totalRounds}`}
+            </div>
+
             <div className={`
               flex items-center space-x-2 px-4 py-2 rounded-full
               ${isDarkMode ? 'bg-gray-800' : 'bg-white'}
@@ -175,18 +205,42 @@ export function WordBuilderGame({ isDarkMode, isVibrant, onExit, language }: Wor
         `}>
           {/* Word Image */}
           <div className="flex justify-center mb-8">
-            <div className="relative w-48 h-48 rounded-2xl overflow-hidden shadow-lg">
+            <div className={`
+              relative w-64 h-64 rounded-2xl overflow-hidden
+              shadow-lg
+              transition-opacity duration-300
+              ${isTransitioning ? 'opacity-0' : 'opacity-100'}
+              ${isWordAnimating ? 'animate-bounce' : ''}
+            `}>
               <img
                 src={words[currentWord].image}
                 alt={words[currentWord].translations[language as keyof typeof words[0]['translations']]}
                 className="w-full h-full object-cover"
               />
+              <div className={`
+                absolute inset-0 bg-gradient-to-t from-black/60 to-transparent
+                flex items-end justify-center
+                p-4
+              `}>
+                <h2 className={`
+                  text-3xl font-bold text-white
+                  drop-shadow-lg
+                  transform transition-all duration-300
+                  ${showWordOverlay ? 'scale-110' : 'scale-100'}
+                `}>
+                  {words[currentWord].translations[language as keyof typeof words[0]['translations']]}
+                </h2>
+              </div>
             </div>
           </div>
 
           {/* Word Building Area */}
           <div className="mb-8">
-            <div className="flex justify-center space-x-4">
+            <div className={`
+              flex justify-center space-x-4
+              transition-opacity duration-300
+              ${isTransitioning ? 'opacity-0' : 'opacity-100'}
+            `}>
               {words[currentWord].word.split('').map((_, index) => (
                 <div
                   key={`slot-${index}`}
@@ -195,8 +249,19 @@ export function WordBuilderGame({ isDarkMode, isVibrant, onExit, language }: Wor
                     flex items-center justify-center
                     text-3xl font-bold font-comic
                     border-4 border-dashed
+                    transition-all duration-300
                     ${isDarkMode ? 'border-gray-600' : 'border-gray-300'}
-                    ${selectedLetters[index] ? (isDarkMode ? 'bg-gray-700' : 'bg-gray-100') : ''}
+                    ${selectedLetters[index]
+                      ? isDarkMode
+                        ? 'bg-gray-700 text-white'
+                        : 'bg-gray-100 text-gray-900'
+                      : ''
+                    }
+                    ${showError && selectedLetters[index]
+                      ? 'animate-[shake_0.5s_ease-in-out] border-red-500'
+                      : ''
+                    }
+                    shadow-lg
                   `}
                 >
                   {selectedLetters[index] || ''}
@@ -206,7 +271,11 @@ export function WordBuilderGame({ isDarkMode, isVibrant, onExit, language }: Wor
           </div>
 
           {/* Available Letters */}
-          <div className="flex justify-center flex-wrap gap-4">
+          <div className={`
+            flex justify-center flex-wrap gap-4
+            transition-opacity duration-300
+            ${isTransitioning ? 'opacity-0' : 'opacity-100'}
+          `}>
             {availableLetters.map((letter, index) => (
               <button
                 key={`letter-${index}`}
@@ -215,13 +284,16 @@ export function WordBuilderGame({ isDarkMode, isVibrant, onExit, language }: Wor
                   w-16 h-16 rounded-xl
                   flex items-center justify-center
                   text-3xl font-bold font-comic text-white
-                  transform hover:scale-110
-                  transition-all duration-300
+                  transform transition-all duration-300
                   ${isVibrant
                     ? 'bg-gradient-to-r from-purple-500 via-pink-500 to-red-500'
                     : isDarkMode
                       ? 'bg-gray-700'
                       : 'bg-purple-600'
+                  }
+                  ${selectedLetterIndex === index
+                    ? 'scale-90 opacity-50'
+                    : 'hover:scale-110'
                   }
                   shadow-lg
                 `}
@@ -274,17 +346,6 @@ export function WordBuilderGame({ isDarkMode, isVibrant, onExit, language }: Wor
                     />
                   ))}
                 </div>
-              </div>
-            </div>
-          )}
-
-          {/* Error Overlay */}
-          {showError && (
-            <div className="absolute inset-0 flex items-center justify-center bg-red-500/30 rounded-3xl">
-              <div className="text-center">
-                <h3 className="text-2xl font-bold text-white">
-                  {language === 'es' ? '¡Inténtalo de nuevo!' : 'Try again!'}
-                </h3>
               </div>
             </div>
           )}
