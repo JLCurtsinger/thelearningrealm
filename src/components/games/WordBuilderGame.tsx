@@ -52,19 +52,22 @@ export function WordBuilderGame({ isDarkMode, isVibrant, onExit, language }: Wor
   const [showWordOverlay, setShowWordOverlay] = useState(false);
   const [selectedLetterIndex, setSelectedLetterIndex] = useState<number | null>(null);
 
+  // Initialize game on mount
   useEffect(() => {
-    generateNewWord();
+    generateNewWord(currentWord);
   }, []);
 
-  const generateNewWord = () => {
+  // Generate new word with synchronized letters
+  const generateNewWord = (wordIndex: number) => {
     setIsTransitioning(true);
     setSelectedLetters([]);
     setShowWordOverlay(false);
     
-    const word = words[currentWord].word;
+    const currentWordObj = words[wordIndex];
+    const wordToSpell = currentWordObj.word;
     
     // Always include all letters needed for the word
-    let letters = word.split('');
+    let letters = wordToSpell.split('');
     
     // Add some random letters for variety
     const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -82,11 +85,11 @@ export function WordBuilderGame({ isDarkMode, isVibrant, onExit, language }: Wor
     letters = letters.sort(() => Math.random() - 0.5);
     setAvailableLetters(letters);
 
-    // Speak the prompt
+    // Speak the prompt for the current word
     if (soundEnabled) {
       const prompt = language === 'es'
-        ? `¿Puedes deletrear ${words[currentWord].translations.es}?`
-        : `Can you spell ${words[currentWord].translations.en}?`;
+        ? `¿Puedes deletrear ${currentWordObj.translations.es}?`
+        : `Can you spell ${currentWordObj.translations.en}?`;
       speakText(prompt, language === 'es' ? 'es-ES' : 'en-US');
     }
 
@@ -130,9 +133,10 @@ export function WordBuilderGame({ isDarkMode, isVibrant, onExit, language }: Wor
           setIsWordAnimating(false);
           setShowCelebration(false);
           if (round < totalRounds) {
+            const nextWordIndex = (currentWord + 1) % words.length;
+            setCurrentWord(nextWordIndex);
             setRound(prev => prev + 1);
-            setCurrentWord((currentWord + 1) % words.length);
-            generateNewWord();
+            generateNewWord(nextWordIndex); // Pass the next word index
           }
         }, 2000);
       } else {
@@ -151,7 +155,7 @@ export function WordBuilderGame({ isDarkMode, isVibrant, onExit, language }: Wor
           setShowError(false);
           setSelectedLetters([]);
           setSelectedLetterIndex(null);
-          generateNewWord();
+          generateNewWord(currentWord); // Regenerate current word
         }, 1000);
       }
     }
@@ -306,7 +310,7 @@ export function WordBuilderGame({ isDarkMode, isVibrant, onExit, language }: Wor
           {/* Controls */}
           <div className="flex justify-center mt-8">
             <button
-              onClick={generateNewWord}
+              onClick={() => generateNewWord(currentWord)}
               className={`
                 p-3 rounded-full
                 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}
