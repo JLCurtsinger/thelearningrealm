@@ -92,13 +92,13 @@ export function ShapeSorterGame({ isDarkMode, isVibrant, onExit, language }: Sha
       // Return to learning path after delay
       setTimeout(() => {
         onExit();
-      }, 5000);
+      }, 3000);
     } catch (error) {
       console.error('Error updating progress:', error);
       // Still exit after delay even if progress update fails
       setTimeout(() => {
         onExit();
-      }, 5000);
+      }, 3000);
     }
   };
 
@@ -107,9 +107,10 @@ export function ShapeSorterGame({ isDarkMode, isVibrant, onExit, language }: Sha
     setShowShapeLabel(false);
     setSelectedShape(null);
     
+    // Always include the target shape in options
     const targetShape = shapes[currentShape];
     
-    // Create a pool of other shapes excluding the target shape
+    // Get remaining shapes excluding the target shape
     const otherShapes = shapes.filter(s => s.id !== targetShape.id);
     
     // Randomly select 2 other shapes
@@ -123,15 +124,14 @@ export function ShapeSorterGame({ isDarkMode, isVibrant, onExit, language }: Sha
     
     setOptions(allOptions);
 
-    // Speak the prompt
-    if (soundEnabled) {
-      const prompt = language === 'es'
-        ? `¿Puedes encontrar el ${targetShape.name.es}?`
-        : `Can you find the ${targetShape.name.en}?`;
-      speakText(prompt, language === 'es' ? 'es-ES' : 'en-US');
-    }
-
+    // Speak the prompt after a short delay to ensure synchronization
     setTimeout(() => {
+      if (soundEnabled) {
+        const prompt = language === 'es'
+          ? `¿Puedes encontrar el ${targetShape.name.es}?`
+          : `Can you find the ${targetShape.name.en}?`;
+        speakText(prompt, language === 'es' ? 'es-ES' : 'en-US');
+      }
       setIsTransitioning(false);
     }, 300);
   };
