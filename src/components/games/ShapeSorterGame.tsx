@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Volume2, Star, Sparkles, Play, XCircle } from 'lucide-react';
+import { ArrowLeft, Star, Volume2, Sparkles, RefreshCw } from 'lucide-react';
 import { useGameAudio } from './GameAudioContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { updateProgressData, addCompletedLesson } from '../../utils/progressStorage';
 
 interface ShapeSorterGameProps {
   isDarkMode: boolean;
@@ -44,6 +46,7 @@ const shapes = [
 ];
 
 export function ShapeSorterGame({ isDarkMode, isVibrant, onExit, language }: ShapeSorterGameProps) {
+  const { user } = useAuth();
   const { soundEnabled, toggleSound, playGameSound, speakText } = useGameAudio();
   const [currentShape, setCurrentShape] = useState(0);
   const [options, setOptions] = useState<typeof shapes>([]);
@@ -56,10 +59,48 @@ export function ShapeSorterGame({ isDarkMode, isVibrant, onExit, language }: Sha
   const [isShapeAnimating, setIsShapeAnimating] = useState(false);
   const [showShapeLabel, setShowShapeLabel] = useState(false);
   const [isShapeError, setIsShapeError] = useState(false);
+  const [gameComplete, setGameComplete] = useState(false);
 
   useEffect(() => {
     generateNewRound();
   }, []);
+
+  // Handle game completion
+  const handleGameCompletion = async () => {
+    if (!user) return;
+
+    setGameComplete(true);
+    playGameSound('success');
+
+    try {
+      // Update reward points
+      await updateProgressData(user.uid, {
+        rewardPoints: score * 10 // 10 points per correct shape
+      });
+
+      // Mark lesson as completed
+      await addCompletedLesson(user.uid, 'shapesorter');
+
+      // Play victory sound and speech
+      if (soundEnabled) {
+        const victoryMessage = language === 'es'
+          ? '¡Felicitaciones! ¡Has completado el juego!'
+          : 'Congratulations! You have completed the game!';
+        speakText(victoryMessage, language === 'es' ? 'es-ES' : 'en-US');
+      }
+
+      // Return to learning path after delay
+      setTimeout(() => {
+        onExit();
+      }, 5000);
+    } catch (error) {
+      console.error('Error updating progress:', error);
+      // Still exit after delay even if progress update fails
+      setTimeout(() => {
+        onExit();
+      }, 5000);
+    }
+  };
 
   const generateNewRound = () => {
     setIsTransitioning(true);
@@ -96,6 +137,7 @@ export function ShapeSorterGame({ isDarkMode, isVibrant, onExit, language }: Sha
   };
 
   const handleShapeClick = (selectedShape: typeof shapes[0]) => {
+    if (gameComplete) return;
     setSelectedShape(selectedShape.id);
 
     if (selectedShape.id === shapes[currentShape].id) {
@@ -119,6 +161,8 @@ export function ShapeSorterGame({ isDarkMode, isVibrant, onExit, language }: Sha
           setRound(prev => prev + 1);
           setCurrentShape((currentShape + 1) % shapes.length);
           generateNewRound();
+        } else {
+          handleGameCompletion();
         }
       }, 2000);
     } else {
@@ -207,7 +251,7 @@ export function ShapeSorterGame({ isDarkMode, isVibrant, onExit, language }: Sha
               <button
                 key={index}
                 onClick={() => handleShapeClick(shape)}
-                disabled={showCelebration}
+                disabled={gameComplete}
                 className={`
                   aspect-square rounded-2xl
                   flex items-center justify-center
@@ -290,17 +334,39 @@ export function ShapeSorterGame({ isDarkMode, isVibrant, onExit, language }: Sha
             <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-3xl">
               <div className="text-center">
                 <h3 className="text-4xl font-bold text-white mb-4">
-                  {language === 'es' ? '¡Excelente! 🎉' : 'Great Job! 🎉'}
+                  {gameComplete
+                    ? language === 'es'
+                      ? '¡Felicitaciones! 🎉\n¡Has completado el juego!'
+                      : 'Congratulations! 🎉\nYou completed the game!'
+                    : language === 'es'
+                      ? '¡Excelente! 🎉'
+                      : 'Great Job! 🎉'
+                  }
                 </h3>
                 <div className="flex justify-center space-x-4">
-                  {Array.from({ length: 3 }).map((_, i) => (
+                  {Array.from({ length: gameComplete ? 6 : 3 }).map((_, i) => (
                     <Sparkles
                       key={i}
-                      className="w-12 h-12 text-yellow-400 animate-spin"
-                      style={{ animationDelay: `${i * 0.2}s` }}
+                      className={`
+                        w-12 h-12 text-yellow-400
+                        ${gameComplete ? 'animate-float' : 'animate-spin'}
+                      `}
+                      style={{
+                        animationDelay: `${i * 0.2}s`,
+                        transform: gameComplete
+                          ? `rotate(${i * 60}deg) translateY(${Math.sin(i) * 20}px)`
+                          : 'none'
+                      }}
                     />
                   ))}
                 </div>
+                {gameComplete && (
+                  <p className="text-white text-xl mt-4">
+                    {language === 'es'
+                      ? `¡Ganaste ${score * 10} puntos!`
+                      : `You earned ${score * 10} points!`}
+                  </p>
+                )}
               </div>
             </div>
           )}
