@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Star, Volume2, Sparkles, RefreshCw } from 'lucide-react';
 import { useGameAudio } from './GameAudioContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { updateProgressData, addCompletedLesson } from '../../utils/progressStorage';
 import { gameContent } from '../../games/gameContent';
 
 const getLetterPairs = (language: string) => {
@@ -15,6 +17,7 @@ interface FindLetterGameProps {
 }
 
 export function FindLetterGame({ isDarkMode, isVibrant, onExit, language }: FindLetterGameProps) {
+  const { user } = useAuth();
   const { soundEnabled, toggleSound, playGameSound, speakText } = useGameAudio();
   const [targetLetter, setTargetLetter] = useState('');
   const [letters, setLetters] = useState<string[]>([]);
@@ -29,10 +32,48 @@ export function FindLetterGame({ isDarkMode, isVibrant, onExit, language }: Find
   const [selectedLetter, setSelectedLetter] = useState<string | null>(null);
   const [isLetterAnimating, setIsLetterAnimating] = useState(false);
   const [isLetterError, setIsLetterError] = useState(false);
+  const [gameComplete, setGameComplete] = useState(false);
 
   useEffect(() => {
     generateNewRound();
   }, []);
+
+  // Handle game completion
+  const handleGameCompletion = async () => {
+    if (!user) return;
+
+    setGameComplete(true);
+    playGameSound('success');
+
+    try {
+      // Update reward points (10 points per correct letter)
+      await updateProgressData(user.uid, {
+        rewardPoints: score * 10
+      });
+
+      // Mark lesson as completed
+      await addCompletedLesson(user.uid, 'findletter');
+
+      // Play victory sound and speech
+      if (soundEnabled) {
+        const victoryMessage = language === 'es'
+          ? '¡Felicitaciones! ¡Has completado el juego!'
+          : 'Congratulations! You have completed the game!';
+        speakText(victoryMessage, language === 'es' ? 'es-ES' : 'en-US');
+      }
+
+      // Return to learning path after delay
+      setTimeout(() => {
+        onExit();
+      }, 3000);
+    } catch (error) {
+      console.error('Error updating progress:', error);
+      // Still exit after delay even if progress update fails
+      setTimeout(() => {
+        onExit();
+      }, 3000);
+    }
+  };
 
   const generateNewRound = () => {
     setIsTransitioning(true);
@@ -76,7 +117,7 @@ export function FindLetterGame({ isDarkMode, isVibrant, onExit, language }: Find
   };
 
   const handleLetterClick = (letter: string) => {
-    if (isCorrect) return;
+    if (isCorrect || gameComplete) return;
     setSelectedLetter(letter);
 
     if (letter === targetLetter) {
@@ -100,6 +141,8 @@ export function FindLetterGame({ isDarkMode, isVibrant, onExit, language }: Find
         if (round < totalRounds) {
           setRound(prev => prev + 1);
           generateNewRound();
+        } else {
+          handleGameCompletion();
         }
       }, 2000);
     } else {
@@ -175,31 +218,16 @@ export function FindLetterGame({ isDarkMode, isVibrant, onExit, language }: Find
         `}>
           {/* Target Letter Display */}
           <div className="text-center mb-12">
-            <h2 className="text-2xl font-bold mb-2">
-              {language === 'es' ? 'Encuentra la letra:' : 'Find the letter:'}
-            </h2>
-            <div className={`
-              relative inline-block px-8 py-4 rounded-2xl
-              ${isVibrant
-                ? 'bg-gradient-to-r from-purple-500 via-pink-500 to-red-500'
-                : 'bg-purple-600'
-              }
-              shadow-lg
-              transform transition-all duration-300
-              ${isLetterAnimating ? 'animate-bounce' : ''}
+            <h2 className={`
+              text-2xl font-bold font-comic
+              ${isDarkMode ? 'text-white' : 'text-gray-900'}
+              ${isTransitioning ? 'opacity-0' : 'opacity-100'}
+              transition-opacity duration-300
             `}>
-              <span className="text-6xl font-bold text-white font-comic">
-                {targetLetter.toUpperCase()}
-              </span>
-              
-              {/* Target Letter Highlight */}
-              <div className={`
-                absolute -inset-1 rounded-2xl
-                bg-white/20 animate-pulse
-                transform transition-opacity duration-300
-                ${showHint ? 'opacity-100' : 'opacity-0'}
-              `} />
-            </div>
+              {language === 'es'
+                ? `Encuentra la letra ${targetLetter.toUpperCase()}`
+                : `Find the letter ${targetLetter.toUpperCase()}`}
+            </h2>
           </div>
 
           {/* Letters Grid */}
@@ -212,6 +240,7 @@ export function FindLetterGame({ isDarkMode, isVibrant, onExit, language }: Find
               <button
                 key={`${letter}-${index}`}
                 onClick={() => handleLetterClick(letter)}
+                disabled={isCorrect || gameComplete}
                 className={`
                   relative aspect-square
                   flex items-center justify-center
@@ -228,7 +257,6 @@ export function FindLetterGame({ isDarkMode, isVibrant, onExit, language }: Find
                   disabled:opacity-50
                   shadow-lg
                 `}
-                disabled={isCorrect}
               >
                 {letter.toUpperCase()}
                 
@@ -241,20 +269,22 @@ export function FindLetterGame({ isDarkMode, isVibrant, onExit, language }: Find
             ))}
           </div>
 
-          {/* Sound Toggle */}
-          <div className="mt-8 flex justify-center space-x-4">
+          {/* Controls */}
+          <div className="flex justify-center space-x-4 mt-8">
             <button
               onClick={generateNewRound}
+              disabled={gameComplete}
               className={`
                 p-3 rounded-full
                 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}
                 shadow-lg
                 transition-transform hover:scale-110
+                disabled:opacity-50
               `}
             >
               <RefreshCw className="w-6 h-6" />
             </button>
-
+            
             <button
               onClick={toggleSound}
               className={`
@@ -273,17 +303,39 @@ export function FindLetterGame({ isDarkMode, isVibrant, onExit, language }: Find
             <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-3xl">
               <div className="text-center">
                 <h3 className="text-4xl font-bold text-white mb-4">
-                  {language === 'es' ? '¡Excelente! 🎉' : 'Great Job! 🎉'}
+                  {gameComplete
+                    ? language === 'es'
+                      ? '¡Felicitaciones! 🎉\n¡Has completado el juego!'
+                      : 'Congratulations! 🎉\nYou completed the game!'
+                    : language === 'es'
+                      ? '¡Excelente! 🎉'
+                      : 'Great Job! 🎉'
+                  }
                 </h3>
                 <div className="flex justify-center space-x-4">
-                  {Array.from({ length: 3 }).map((_, i) => (
+                  {Array.from({ length: gameComplete ? 6 : 3 }).map((_, i) => (
                     <Sparkles
                       key={i}
-                      className="w-12 h-12 text-yellow-400 animate-spin"
-                      style={{ animationDelay: `${i * 0.2}s` }}
+                      className={`
+                        w-12 h-12 text-yellow-400
+                        ${gameComplete ? 'animate-float' : 'animate-spin'}
+                      `}
+                      style={{
+                        animationDelay: `${i * 0.2}s`,
+                        transform: gameComplete
+                          ? `rotate(${i * 60}deg) translateY(${Math.sin(i) * 20}px)`
+                          : 'none'
+                      }}
                     />
                   ))}
                 </div>
+                {gameComplete && (
+                  <p className="text-white text-xl mt-4">
+                    {language === 'es'
+                      ? `¡Ganaste ${score * 10} puntos!`
+                      : `You earned ${score * 10} points!`}
+                  </p>
+                )}
               </div>
             </div>
           )}
