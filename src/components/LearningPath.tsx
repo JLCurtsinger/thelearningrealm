@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Sparkles } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getPlacementTestResult, type Lesson } from '../utils/placementTestStorage';
+import { getProgressData } from '../utils/progressStorage';
 import { PlacementTestChat } from './chat/PlacementTestChat';
 import { games } from '../utils/gamesData';
 import { CountingGame } from './games/CountingGame';
@@ -83,6 +84,42 @@ const GAME_COMPONENTS: Record<string, React.ComponentType<any>> = {
   'ICanDoItAllGame': ICanDoItAllGame
 };
 
+// Helper function to get recommended games based on completed ones
+const getRecommendedGames = (completedGames: string[], currentGames: Lesson[]): Lesson[] => {
+  // Get all available games excluding completed ones and current ones
+  const availableGames = games.filter(game => 
+    !completedGames.includes(game.id) && 
+    !currentGames.some(current => current.id === game.id)
+  );
+
+  if (availableGames.length === 0) {
+    // If all games are completed, reset the cycle but with increased difficulty
+    return games
+      .filter(game => !currentGames.some(current => current.id === game.id))
+      .slice(0, 2)
+      .map(game => ({
+        ...game,
+        difficultyLevel: 'intermediate',
+        title: `${game.title} (Level 2)`,
+        description: `Advanced ${game.description.toLowerCase()}`
+      }));
+  }
+
+  // Select 2 random games from available ones
+  return availableGames
+    .sort(() => Math.random() - 0.5)
+    .slice(0, 2)
+    .map(game => ({
+      id: game.id,
+      title: game.title,
+      description: game.description,
+      targetSkills: game.skills,
+      difficultyLevel: game.difficulty === 'easy' ? 'beginner' : game.difficulty,
+      icon: game.id,
+      component: game.component
+    }));
+};
+
 // Helper function to map AI recommendations to lessons
 const mapAILessonsToLocalGames = (
   aiLessons: Lesson[],
@@ -142,70 +179,56 @@ export function LearningPath({ isDarkMode, isVibrant, t, language }: LearningPat
   const [activeGame, setActiveGame] = useState<string | null>(null);
   const [displayedLessons, setDisplayedLessons] = useState<Lesson[]>(DEFAULT_LESSONS);
   const [showPlacementTest, setShowPlacementTest] = useState(false);
+  const [completedGames, setCompletedGames] = useState<string[]>([]);
 
   useEffect(() => {
-    const loadRecommendedLessons = async () => {
-      console.log("🔄 Starting loadRecommendedLessons...");
-      console.log("👤 Current user:", user?.uid);
-
+    const loadUserProgress = async () => {
       if (user) {
-        const result = await getPlacementTestResult(user.uid);
-        console.log("✅ Retrieved Placement Test Result:", result);
+        // Load completed games from progress data
+        const progressData = await getProgressData(user.uid);
+        if (progressData?.completedLessons) {
+          setCompletedGames(progressData.completedLessons);
+        }
 
+        // Load recommended lessons based on placement test or defaults
+        const result = await getPlacementTestResult(user.uid);
         if (result?.lessons && Array.isArray(result.lessons)) {
           const mappedLessons = mapAILessonsToLocalGames(
             result.lessons,
             result.difficultyLevel
           );
-
-          if (mappedLessons.length === 0) {
-            console.warn("⚠️ No valid lessons could be created, using defaults");
-            setDisplayedLessons(DEFAULT_LESSONS);
-          } else {
-            console.log("✅ Using mapped lessons:", mappedLessons);
-            setDisplayedLessons(mappedLessons);
-          }
+          setDisplayedLessons(mappedLessons);
         } else {
-          console.log("ℹ️ No valid lessons array, using defaults");
-          setDisplayedLessons(DEFAULT_LESSONS);
+          // Use default lessons but check if they're completed
+          const recommendedGames = getRecommendedGames(
+            progressData?.completedLessons || [],
+            []
+          );
+          setDisplayedLessons(recommendedGames);
         }
-      } else {
-        console.log("ℹ️ No user logged in, using default lessons");
-        setDisplayedLessons(DEFAULT_LESSONS);
       }
     };
 
-    loadRecommendedLessons();
+    loadUserProgress();
   }, [user]);
 
-  const handlePlacementTestComplete = (result: { lessons: Lesson[] }) => {
-    console.log("🎉 Placement Test Completed");
-    console.log("📝 Full result object:", result);
-    
-    if (result?.lessons && Array.isArray(result.lessons)) {
-      const mappedLessons = mapAILessonsToLocalGames(
-        result.lessons
-      );
+  // Handle game completion and update displayed lessons
+  const handleGameExit = async () => {
+    if (user && activeGame) {
+      // Refresh completed games list
+      const progressData = await getProgressData(user.uid);
+      const updatedCompletedGames = progressData?.completedLessons || [];
+      setCompletedGames(updatedCompletedGames);
 
-      if (mappedLessons.length === 0) {
-        console.warn("⚠️ No valid lessons could be created after placement test");
-        setDisplayedLessons(DEFAULT_LESSONS);
-      } else {
-        console.log("✅ Using mapped lessons from placement test:", mappedLessons);
-        setDisplayedLessons(mappedLessons);
-      }
-    } else {
-      console.error("❌ Invalid lessons array:", result?.lessons);
-      setDisplayedLessons(DEFAULT_LESSONS);
+      // Get new recommended games
+      const newGames = getRecommendedGames(updatedCompletedGames, displayedLessons);
+      setDisplayedLessons(newGames);
     }
-    
-    setShowPlacementTest(false);
+    setActiveGame(null);
   };
 
   if (activeGame) {
     const selectedLesson = displayedLessons.find(lesson => lesson.id === activeGame);
-    console.log("🎮 Selected game:", activeGame);
-    console.log("📋 Selected lesson:", selectedLesson);
     
     if (selectedLesson?.component && GAME_COMPONENTS[selectedLesson.component]) {
       const GameComponent = GAME_COMPONENTS[selectedLesson.component];
@@ -213,7 +236,7 @@ export function LearningPath({ isDarkMode, isVibrant, t, language }: LearningPat
         <GameComponent
           isDarkMode={isDarkMode}
           isVibrant={isVibrant}
-          onExit={() => setActiveGame(null)}
+          onExit={handleGameExit}
           language={language}
         />
       );

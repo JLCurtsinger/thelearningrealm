@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Star, Volume2, Sparkles, RefreshCw } from 'lucide-react';
 import { useGameAudio } from './GameAudioContext';
-import { updateProgressData } from '../../utils/progressStorage';
+import { updateProgressData, addCompletedLesson } from '../../utils/progressStorage';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface WordBuilderGameProps {
@@ -64,33 +64,40 @@ export function WordBuilderGame({ isDarkMode, isVibrant, onExit, language }: Wor
 
   // Handle game completion
   const handleGameCompletion = async () => {
+    if (!user) return;
+
     setShowVictory(true);
     setGameComplete(true);
     playGameSound('success');
 
-    // Play victory sound and speech
-    if (soundEnabled) {
-      const victoryMessage = language === 'es'
-        ? '¡Felicitaciones! ¡Has completado el juego!'
-        : 'Congratulations! You have completed the game!';
-      speakText(victoryMessage, language === 'es' ? 'es-ES' : 'en-US');
-    }
+    try {
+      // Update reward points
+      await updateProgressData(user.uid, {
+        rewardPoints: score * 10 // 10 points per correct word
+      });
 
-    // Update user progress if logged in
-    if (user) {
-      try {
-        await updateProgressData(user.uid, {
-          rewardPoints: score * 10 // 10 points per correct word
-        });
-      } catch (error) {
-        console.error('Error updating progress:', error);
+      // Mark lesson as completed
+      await addCompletedLesson(user.uid, 'wordbuilder');
+
+      // Play victory sound and speech
+      if (soundEnabled) {
+        const victoryMessage = language === 'es'
+          ? '¡Felicitaciones! ¡Has completado el juego!'
+          : 'Congratulations! You have completed the game!';
+        speakText(victoryMessage, language === 'es' ? 'es-ES' : 'en-US');
       }
-    }
 
-    // Return to learning path after delay
-    setTimeout(() => {
-      onExit();
-    }, 5000);
+      // Return to learning path after delay
+      setTimeout(() => {
+        onExit();
+      }, 5000);
+    } catch (error) {
+      console.error('Error updating progress:', error);
+      // Still exit after delay even if progress update fails
+      setTimeout(() => {
+        onExit();
+      }, 5000);
+    }
   };
 
   // Generate new word with synchronized letters
