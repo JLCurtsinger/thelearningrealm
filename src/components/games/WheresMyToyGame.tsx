@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Volume2, Star, Sparkles, Play, XCircle } from 'lucide-react';
 import { useGameAudio } from './GameAudioContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { updateProgressData, addCompletedLesson } from '../../utils/progressStorage';
 
 interface WheresMyToyGameProps {
   isDarkMode: boolean;
@@ -9,7 +11,7 @@ interface WheresMyToyGameProps {
   language: string;
 }
 
-// Game locations with translations
+// Game locations with translations and visual zones
 const locations = [
   {
     id: 'table',
@@ -35,6 +37,7 @@ const locations = [
 ];
 
 export function WheresMyToyGame({ isDarkMode, isVibrant, onExit, language }: WheresMyToyGameProps) {
+  const { user } = useAuth();
   const { soundEnabled, toggleSound, playGameSound, speakText } = useGameAudio();
   const [currentLocation, setCurrentLocation] = useState(0);
   const [score, setScore] = useState(0);
@@ -51,15 +54,53 @@ export function WheresMyToyGame({ isDarkMode, isVibrant, onExit, language }: Whe
   const [showLocationLabel, setShowLocationLabel] = useState(false);
   const [isTargetZoneActive, setIsTargetZoneActive] = useState(false);
   const [isToyAnimating, setIsToyAnimating] = useState(false);
+  const [gameComplete, setGameComplete] = useState(false);
 
-  useEffect(() => {
-    if (soundEnabled) {
-      speakPrompt();
+  // Handle game completion
+  const handleGameCompletion = async () => {
+    if (!user) return;
+
+    setGameComplete(true);
+    playGameSound('success');
+
+    try {
+      // Update reward points (10 points per correct placement)
+      await updateProgressData(user.uid, {
+        rewardPoints: score * 10
+      });
+
+      // Mark lesson as completed
+      await addCompletedLesson(user.uid, 'wheresmytoy');
+
+      // Play victory sound and speech
+      if (soundEnabled) {
+        const victoryMessage = language === 'es'
+          ? '¡Felicitaciones! ¡Has encontrado todos los juguetes!'
+          : 'Congratulations! You found all the toys!';
+        speakText(victoryMessage, language === 'es' ? 'es-ES' : 'en-US');
+      }
+
+      // Return to learning path after delay
+      setTimeout(() => {
+        onExit();
+      }, 3000);
+    } catch (error) {
+      console.error('Error updating progress:', error);
+      // Still exit after delay even if progress update fails
+      setTimeout(() => {
+        onExit();
+      }, 3000);
     }
+  };
+
+  // Initialize game
+  useEffect(() => {
     generateOptions();
-  }, [currentLocation, gameState]);
+    speakPrompt();
+  }, [currentLocation]);
 
   const speakPrompt = () => {
+    if (!soundEnabled) return;
     const location = locations[currentLocation];
     const prompt = gameState === 'dragging'
       ? language === 'es'
@@ -79,13 +120,20 @@ export function WheresMyToyGame({ isDarkMode, isVibrant, onExit, language }: Whe
   };
 
   const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
-    if (gameState !== 'dragging') return;
+    if (gameState !== 'dragging' || gameComplete) return;
     setIsDragging(true);
     playGameSound('click');
     
+    const container = e.currentTarget.getBoundingClientRect();
     const pos = 'touches' in e 
-      ? { x: e.touches[0].clientX, y: e.touches[0].clientY }
-      : { x: e.clientX, y: e.clientY };
+      ? { 
+          x: ((e.touches[0].clientX - container.left) / container.width) * 100,
+          y: ((e.touches[0].clientY - container.top) / container.height) * 100
+        }
+      : {
+          x: ((e.clientX - container.left) / container.width) * 100,
+          y: ((e.clientY - container.top) / container.height) * 100
+        };
     
     setToyPosition(pos);
   };
@@ -93,19 +141,31 @@ export function WheresMyToyGame({ isDarkMode, isVibrant, onExit, language }: Whe
   const handleDragMove = (e: React.MouseEvent | React.TouchEvent) => {
     if (!isDragging) return;
     
+    const container = e.currentTarget.getBoundingClientRect();
     const pos = 'touches' in e 
-      ? { x: e.touches[0].clientX, y: e.touches[0].clientY }
-      : { x: e.clientX, y: e.clientY };
+      ? {
+          x: ((e.touches[0].clientX - container.left) / container.width) * 100,
+          y: ((e.touches[0].clientY - container.top) / container.height) * 100
+        }
+      : {
+          x: ((e.clientX - container.left) / container.width) * 100,
+          y: ((e.clientY - container.top) / container.height) * 100
+        };
     
     setToyPosition(pos);
 
     // Check if toy is near target zone
     const targetZone = locations[currentLocation].zone;
     const isNearZone = 
-      Math.abs(pos.x - targetZone.x) < 50 &&
-      Math.abs(pos.y - targetZone.y) < 50;
+      Math.abs(pos.x - targetZone.x) < targetZone.width &&
+      Math.abs(pos.y - targetZone.y) < targetZone.height;
     
     setIsTargetZoneActive(isNearZone);
+    
+    // Play sound when entering target zone
+    if (isNearZone && !isTargetZoneActive) {
+      playGameSound('click');
+    }
   };
 
   const handleDragEnd = () => {
@@ -149,6 +209,7 @@ export function WheresMyToyGame({ isDarkMode, isVibrant, onExit, language }: Whe
   };
 
   const handleAnswerClick = (answer: string) => {
+    if (gameComplete) return;
     setSelectedOption(answer);
     const correctAnswer = locations[currentLocation].name[language as keyof typeof locations[0]['name']];
     
@@ -177,6 +238,8 @@ export function WheresMyToyGame({ isDarkMode, isVibrant, onExit, language }: Whe
             setSelectedOption(null);
             setIsTransitioning(false);
           }, 500);
+        } else {
+          handleGameCompletion();
         }
       }, 2000);
     } else {
@@ -278,22 +341,27 @@ export function WheresMyToyGame({ isDarkMode, isVibrant, onExit, language }: Whe
             <div className="w-full h-full bg-gradient-to-b from-blue-100 to-blue-200">
               {/* Furniture */}
               <div className={`
-                absolute transition-all duration-300
+                absolute w-32 h-4 bg-brown-600 rounded-lg
+                transition-all duration-300
                 ${isTargetZoneActive ? 'ring-4 ring-yellow-400 scale-105' : ''}
-              `} style={{ left: '40%', top: '20%', width: '20%', height: '20%' }}>
-                <div className="w-full h-4 bg-brown-600 rounded-lg" /> {/* Table */}
+              `} style={{ left: '40%', top: '20%' }}>
+                <div className="w-full h-full bg-gradient-to-r from-yellow-800 to-yellow-700 rounded-lg" />
               </div>
+              
               <div className={`
-                absolute transition-all duration-300
+                absolute w-16 h-32 bg-brown-500 rounded-lg
+                transition-all duration-300
                 ${isTargetZoneActive ? 'ring-4 ring-yellow-400 scale-105' : ''}
-              `} style={{ left: '15%', top: '40%', width: '10%', height: '30%' }}>
-                <div className="w-full h-full bg-brown-500 rounded-lg" /> {/* Chair */}
+              `} style={{ left: '15%', top: '40%' }}>
+                <div className="w-full h-full bg-gradient-to-b from-yellow-800 to-yellow-700 rounded-lg" />
               </div>
+              
               <div className={`
-                absolute transition-all duration-300
+                absolute w-48 h-8 bg-brown-700 rounded-lg
+                transition-all duration-300
                 ${isTargetZoneActive ? 'ring-4 ring-yellow-400 scale-105' : ''}
-              `} style={{ left: '70%', top: '60%', width: '25%', height: '10%' }}>
-                <div className="w-full h-full bg-brown-700 rounded-lg" /> {/* Bed */}
+              `} style={{ left: '70%', top: '60%' }}>
+                <div className="w-full h-full bg-gradient-to-r from-yellow-900 to-yellow-800 rounded-lg" />
               </div>
             </div>
           </div>
@@ -311,22 +379,34 @@ export function WheresMyToyGame({ isDarkMode, isVibrant, onExit, language }: Whe
             onMouseDown={handleDragStart}
             onTouchStart={handleDragStart}
           >
+            {/* Bear Body */}
             <div className={`
               w-full h-full rounded-full
               ${isVibrant
-                ? 'bg-gradient-to-b from-purple-500 to-pink-500'
+                ? 'bg-gradient-to-b from-yellow-500 to-yellow-600'
                 : isDarkMode
-                  ? 'bg-gray-700'
-                  : 'bg-purple-600'
+                  ? 'bg-yellow-600'
+                  : 'bg-yellow-500'
               }
               shadow-lg
+              relative
             `}>
-              {/* Bear face */}
-              <div className="relative w-full h-full">
-                <div className="absolute top-1/4 left-1/4 w-2 h-2 rounded-full bg-white" />
-                <div className="absolute top-1/4 right-1/4 w-2 h-2 rounded-full bg-white" />
-                <div className="absolute bottom-1/3 left-1/2 w-4 h-2 rounded-full bg-white transform -translate-x-1/2" />
+              {/* Bear Face */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                {/* Eyes */}
+                <div className="flex space-x-4 mb-2">
+                  <div className="w-2 h-2 rounded-full bg-brown-900" />
+                  <div className="w-2 h-2 rounded-full bg-brown-900" />
+                </div>
+                {/* Nose */}
+                <div className="w-3 h-2 rounded-full bg-brown-900" />
+                {/* Mouth */}
+                <div className="w-4 h-1 mt-1 rounded-full bg-brown-900" />
               </div>
+              
+              {/* Ears */}
+              <div className="absolute -top-2 -left-2 w-4 h-4 rounded-full bg-yellow-600" />
+              <div className="absolute -top-2 -right-2 w-4 h-4 rounded-full bg-yellow-600" />
             </div>
 
             {/* Location Label */}
@@ -352,6 +432,7 @@ export function WheresMyToyGame({ isDarkMode, isVibrant, onExit, language }: Whe
                   <button
                     key={index}
                     onClick={() => handleAnswerClick(option)}
+                    disabled={gameComplete}
                     className={`
                       px-6 py-3 rounded-xl
                       font-bold text-white
@@ -365,6 +446,7 @@ export function WheresMyToyGame({ isDarkMode, isVibrant, onExit, language }: Whe
                         : 'hover:scale-105'
                       }
                       shadow-lg
+                      disabled:opacity-50
                     `}
                   >
                     {option}
@@ -379,17 +461,39 @@ export function WheresMyToyGame({ isDarkMode, isVibrant, onExit, language }: Whe
             <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-3xl">
               <div className="text-center">
                 <h3 className="text-4xl font-bold text-white mb-4">
-                  {language === 'es' ? '¡Excelente! 🎉' : 'Great Job! 🎉'}
+                  {gameComplete
+                    ? language === 'es'
+                      ? '¡Felicitaciones! 🎉\n¡Has encontrado todos los juguetes!'
+                      : 'Congratulations! 🎉\nYou found all the toys!'
+                    : language === 'es'
+                      ? '¡Excelente! 🎉'
+                      : 'Great Job! 🎉'
+                  }
                 </h3>
                 <div className="flex justify-center space-x-4">
-                  {Array.from({ length: 3 }).map((_, i) => (
+                  {Array.from({ length: gameComplete ? 6 : 3 }).map((_, i) => (
                     <Sparkles
                       key={i}
-                      className="w-12 h-12 text-yellow-400 animate-spin"
-                      style={{ animationDelay: `${i * 0.2}s` }}
+                      className={`
+                        w-12 h-12 text-yellow-400
+                        ${gameComplete ? 'animate-float' : 'animate-spin'}
+                      `}
+                      style={{
+                        animationDelay: `${i * 0.2}s`,
+                        transform: gameComplete
+                          ? `rotate(${i * 60}deg) translateY(${Math.sin(i) * 20}px)`
+                          : 'none'
+                      }}
                     />
                   ))}
                 </div>
+                {gameComplete && (
+                  <p className="text-white text-xl mt-4">
+                    {language === 'es'
+                      ? `¡Ganaste ${score * 10} puntos!`
+                      : `You earned ${score * 10} points!`}
+                  </p>
+                )}
               </div>
             </div>
           )}
