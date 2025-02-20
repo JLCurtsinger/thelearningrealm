@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Volume2, Star, Sparkles, Play, XCircle } from 'lucide-react';
 import { useGameAudio } from './GameAudioContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { updateProgressData, addCompletedLesson } from '../../utils/progressStorage';
 
 interface ICanStompGameProps {
   isDarkMode: boolean;
@@ -10,6 +12,7 @@ interface ICanStompGameProps {
 }
 
 export function ICanStompGame({ isDarkMode, isVibrant, onExit, language }: ICanStompGameProps) {
+  const { user } = useAuth();
   const { soundEnabled, toggleSound, playGameSound, speakText } = useGameAudio();
   const [isStarted, setIsStarted] = useState(false);
   const [score, setScore] = useState(0);
@@ -21,6 +24,7 @@ export function ICanStompGame({ isDarkMode, isVibrant, onExit, language }: ICanS
   const [selectedCharacter, setSelectedCharacter] = useState<number | null>(null);
   const [isCharacterAnimating, setIsCharacterAnimating] = useState(false);
   const [showActionLabel, setShowActionLabel] = useState(false);
+  const [gameComplete, setGameComplete] = useState(false);
 
   useEffect(() => {
     if (soundEnabled && !isStarted) {
@@ -33,7 +37,45 @@ export function ICanStompGame({ isDarkMode, isVibrant, onExit, language }: ICanS
     }
   }, [isStarted]);
 
+  // Handle game completion
+  const handleGameCompletion = async () => {
+    if (!user) return;
+
+    setGameComplete(true);
+    playGameSound('success');
+
+    try {
+      // Update reward points (10 points per correct identification)
+      await updateProgressData(user.uid, {
+        rewardPoints: score * 10
+      });
+
+      // Mark lesson as completed
+      await addCompletedLesson(user.uid, 'icanstomp');
+
+      // Play victory sound and speech
+      if (soundEnabled) {
+        const victoryMessage = language === 'es'
+          ? '¡Felicitaciones! ¡Has completado el juego!'
+          : 'Congratulations! You have completed the game!';
+        speakText(victoryMessage, language === 'es' ? 'es-ES' : 'en-US');
+      }
+
+      // Return to learning path after delay
+      setTimeout(() => {
+        onExit();
+      }, 3000);
+    } catch (error) {
+      console.error('Error updating progress:', error);
+      // Still exit after delay even if progress update fails
+      setTimeout(() => {
+        onExit();
+      }, 3000);
+    }
+  };
+
   const handleCharacterClick = (isStomping: boolean, index: number) => {
+    if (gameComplete) return;
     setSelectedCharacter(index);
 
     if (isStomping) {
@@ -62,6 +104,8 @@ export function ICanStompGame({ isDarkMode, isVibrant, onExit, language }: ICanS
             setSelectedCharacter(null);
             setIsTransitioning(false);
           }, 300);
+        } else {
+          handleGameCompletion();
         }
       }, 2000);
     } else {
@@ -86,7 +130,7 @@ export function ICanStompGame({ isDarkMode, isVibrant, onExit, language }: ICanS
   const Character = ({ isStomping = false, onClick, index }: { isStomping?: boolean; onClick?: () => void; index: number }) => (
     <button
       onClick={onClick}
-      disabled={showCelebration}
+      disabled={showCelebration || gameComplete}
       className={`
         relative w-48 h-48
         transform transition-all duration-300
@@ -272,17 +316,51 @@ export function ICanStompGame({ isDarkMode, isVibrant, onExit, language }: ICanS
             <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-3xl">
               <div className="text-center">
                 <h3 className="text-4xl font-bold text-white mb-4">
-                  {language === 'es' ? '¡Excelente! 🎉' : 'Great Job! 🎉'}
+                  {gameComplete
+                    ? language === 'es'
+                      ? '¡Felicitaciones! 🎉\n¡Has completado el juego!'
+                      : 'Congratulations! 🎉\nYou completed the game!'
+                    : language === 'es'
+                      ? '¡Excelente! 🎉'
+                      : 'Great Job! 🎉'
+                  }
                 </h3>
                 <div className="flex justify-center space-x-4">
-                  {Array.from({ length: 3 }).map((_, i) => (
+                  {Array.from({ length: gameComplete ? 6 : 3 }).map((_, i) => (
                     <Sparkles
                       key={i}
-                      className="w-12 h-12 text-yellow-400 animate-spin"
-                      style={{ animationDelay: `${i * 0.2}s` }}
+                      className={`
+                        w-12 h-12 text-yellow-400
+                        ${gameComplete ? 'animate-float' : 'animate-spin'}
+                      `}
+                      style={{
+                        animationDelay: `${i * 0.2}s`,
+                        transform: gameComplete
+                          ? `rotate(${i * 60}deg) translateY(${Math.sin(i) * 20}px)`
+                          : 'none'
+                      }}
                     />
                   ))}
                 </div>
+                {gameComplete && (
+                  <p className="text-white text-xl mt-4">
+                    {language === 'es'
+                      ? `¡Ganaste ${score * 10} puntos!`
+                      : `You earned ${score * 10} points!`}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Error Overlay */}
+          {showError && (
+            <div className="absolute inset-0 flex items-center justify-center bg-red-500/30 rounded-3xl">
+              <div className="text-center">
+                <XCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+                <h3 className="text-2xl font-bold text-white">
+                  {language === 'es' ? '¡Inténtalo de nuevo!' : 'Try again!'}
+                </h3>
               </div>
             </div>
           )}
