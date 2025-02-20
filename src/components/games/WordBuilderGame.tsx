@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Star, Volume2, Sparkles, RefreshCw } from 'lucide-react';
 import { useGameAudio } from './GameAudioContext';
+import { updateProgressData } from '../../utils/progressStorage';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface WordBuilderGameProps {
   isDarkMode: boolean;
@@ -38,6 +40,7 @@ const words = [
 ];
 
 export function WordBuilderGame({ isDarkMode, isVibrant, onExit, language }: WordBuilderGameProps) {
+  const { user } = useAuth();
   const { soundEnabled, toggleSound, playGameSound, speakText } = useGameAudio();
   const [currentWord, setCurrentWord] = useState(0);
   const [selectedLetters, setSelectedLetters] = useState<string[]>([]);
@@ -51,11 +54,44 @@ export function WordBuilderGame({ isDarkMode, isVibrant, onExit, language }: Wor
   const [isWordAnimating, setIsWordAnimating] = useState(false);
   const [showWordOverlay, setShowWordOverlay] = useState(false);
   const [selectedLetterIndex, setSelectedLetterIndex] = useState<number | null>(null);
+  const [gameComplete, setGameComplete] = useState(false);
+  const [showVictory, setShowVictory] = useState(false);
 
   // Initialize game on mount
   useEffect(() => {
     generateNewWord(currentWord);
   }, []);
+
+  // Handle game completion
+  const handleGameCompletion = async () => {
+    setShowVictory(true);
+    setGameComplete(true);
+    playGameSound('success');
+
+    // Play victory sound and speech
+    if (soundEnabled) {
+      const victoryMessage = language === 'es'
+        ? '¡Felicitaciones! ¡Has completado el juego!'
+        : 'Congratulations! You have completed the game!';
+      speakText(victoryMessage, language === 'es' ? 'es-ES' : 'en-US');
+    }
+
+    // Update user progress if logged in
+    if (user) {
+      try {
+        await updateProgressData(user.uid, {
+          rewardPoints: score * 10 // 10 points per correct word
+        });
+      } catch (error) {
+        console.error('Error updating progress:', error);
+      }
+    }
+
+    // Return to learning path after delay
+    setTimeout(() => {
+      onExit();
+    }, 5000);
+  };
 
   // Generate new word with synchronized letters
   const generateNewWord = (wordIndex: number) => {
@@ -99,6 +135,8 @@ export function WordBuilderGame({ isDarkMode, isVibrant, onExit, language }: Wor
   };
 
   const handleLetterClick = (letter: string, index: number) => {
+    if (gameComplete) return;
+
     playGameSound('click');
     setSelectedLetterIndex(index);
     
@@ -132,11 +170,14 @@ export function WordBuilderGame({ isDarkMode, isVibrant, onExit, language }: Wor
         setTimeout(() => {
           setIsWordAnimating(false);
           setShowCelebration(false);
+          
           if (round < totalRounds) {
             const nextWordIndex = (currentWord + 1) % words.length;
             setCurrentWord(nextWordIndex);
             setRound(prev => prev + 1);
-            generateNewWord(nextWordIndex); // Pass the next word index
+            generateNewWord(nextWordIndex);
+          } else {
+            handleGameCompletion();
           }
         }, 2000);
       } else {
@@ -284,6 +325,7 @@ export function WordBuilderGame({ isDarkMode, isVibrant, onExit, language }: Wor
               <button
                 key={`letter-${index}`}
                 onClick={() => handleLetterClick(letter, index)}
+                disabled={gameComplete}
                 className={`
                   w-16 h-16 rounded-xl
                   flex items-center justify-center
@@ -300,6 +342,7 @@ export function WordBuilderGame({ isDarkMode, isVibrant, onExit, language }: Wor
                     : 'hover:scale-110'
                   }
                   shadow-lg
+                  disabled:opacity-50
                 `}
               >
                 {letter}
@@ -311,11 +354,13 @@ export function WordBuilderGame({ isDarkMode, isVibrant, onExit, language }: Wor
           <div className="flex justify-center mt-8">
             <button
               onClick={() => generateNewWord(currentWord)}
+              disabled={gameComplete}
               className={`
                 p-3 rounded-full
                 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}
                 shadow-lg
                 transition-transform hover:scale-110
+                disabled:opacity-50
               `}
             >
               <RefreshCw className="w-6 h-6" />
@@ -335,21 +380,43 @@ export function WordBuilderGame({ isDarkMode, isVibrant, onExit, language }: Wor
           </div>
 
           {/* Celebration Overlay */}
-          {showCelebration && (
+          {(showCelebration || showVictory) && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-3xl">
               <div className="text-center">
                 <h3 className="text-4xl font-bold text-white mb-4">
-                  {language === 'es' ? '¡Excelente! 🎉' : 'Great Job! 🎉'}
+                  {showVictory
+                    ? language === 'es'
+                      ? '¡Felicitaciones! 🎉\n¡Has completado el juego!'
+                      : 'Congratulations! 🎉\nYou completed the game!'
+                    : language === 'es'
+                      ? '¡Excelente! 🎉'
+                      : 'Great Job! 🎉'
+                  }
                 </h3>
                 <div className="flex justify-center space-x-4">
-                  {Array.from({ length: 3 }).map((_, i) => (
+                  {Array.from({ length: showVictory ? 6 : 3 }).map((_, i) => (
                     <Sparkles
                       key={i}
-                      className="w-12 h-12 text-yellow-400 animate-spin"
-                      style={{ animationDelay: `${i * 0.2}s` }}
+                      className={`
+                        w-12 h-12 text-yellow-400
+                        ${showVictory ? 'animate-float' : 'animate-spin'}
+                      `}
+                      style={{
+                        animationDelay: `${i * 0.2}s`,
+                        transform: showVictory
+                          ? `rotate(${i * 60}deg) translateY(${Math.sin(i) * 20}px)`
+                          : 'none'
+                      }}
                     />
                   ))}
                 </div>
+                {showVictory && (
+                  <p className="text-white text-xl mt-4">
+                    {language === 'es'
+                      ? `¡Ganaste ${score * 10} puntos!`
+                      : `You earned ${score * 10} points!`}
+                  </p>
+                )}
               </div>
             </div>
           )}
