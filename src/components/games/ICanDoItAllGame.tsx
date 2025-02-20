@@ -9,35 +9,31 @@ interface ICanDoItAllGameProps {
   language: string;
 }
 
-// All possible actions with their animations and translations
+// Different actions with enhanced animations
 const actions = [
   {
-    id: 'wave',
-    animation: 'wave',
-    text: { en: 'waving', es: 'saludando' },
-    prompt: { en: 'Who is waving?', es: '¿Quién está saludando?' },
-    icon: '👋'
+    id: 'running',
+    animation: 'animate-run',
+    text: { en: 'running', es: 'corriendo' },
+    prompt: { en: 'Who is running?', es: '¿Quién está corriendo?' },
+    icon: '🏃',
+    sound: 'whoosh'
   },
   {
-    id: 'jump',
-    animation: 'bounce',
+    id: 'jumping',
+    animation: 'animate-jump',
     text: { en: 'jumping', es: 'saltando' },
     prompt: { en: 'Who is jumping?', es: '¿Quién está saltando?' },
-    icon: '🦘'
+    icon: '🦘',
+    sound: 'boing'
   },
   {
-    id: 'clap',
-    animation: 'clap',
-    text: { en: 'clapping', es: 'aplaudiendo' },
-    prompt: { en: 'Who is clapping?', es: '¿Quién está aplaudiendo?' },
-    icon: '👏'
-  },
-  {
-    id: 'stomp',
-    animation: 'stomp',
-    text: { en: 'stomping', es: 'pisando fuerte' },
-    prompt: { en: 'Who is stomping?', es: '¿Quién está pisando fuerte?' },
-    icon: '👣'
+    id: 'spinning',
+    animation: 'animate-spin-slow',
+    text: { en: 'spinning', es: 'girando' },
+    prompt: { en: 'Who is spinning?', es: '¿Quién está girando?' },
+    icon: '🌀',
+    sound: 'whirl'
   }
 ];
 
@@ -52,6 +48,9 @@ export function ICanDoItAllGame({ isDarkMode, isVibrant, onExit, language }: ICa
   const [isCharacterAnimating, setIsCharacterAnimating] = useState(false);
   const [showActionLabel, setShowActionLabel] = useState(false);
   const [isError, setIsError] = useState(false);
+  const [round, setRound] = useState(1);
+  const [gameComplete, setGameComplete] = useState(false);
+  const totalRounds = actions.length;
 
   useEffect(() => {
     if (soundEnabled && gameState === 'intro') {
@@ -89,11 +88,25 @@ export function ICanDoItAllGame({ isDarkMode, isVibrant, onExit, language }: ICa
     }, 300);
   };
 
+  const handleGameCompletion = () => {
+    setGameComplete(true);
+    setGameState('final');
+  };
+
   const handleActionClick = (selectedAction: string, index: number) => {
+    if (gameComplete) return;
     setSelectedCharacter(index);
 
     if (selectedAction === actions[currentAction].id) {
+      // Play success sound effect
       playGameSound('success');
+      
+      // Play action-specific sound
+      const actionSound = actions[currentAction].sound;
+      if (actionSound) {
+        playGameSound(actionSound, 0.3);
+      }
+
       setIsCharacterAnimating(true);
       setShowActionLabel(true);
       
@@ -110,14 +123,20 @@ export function ICanDoItAllGame({ isDarkMode, isVibrant, onExit, language }: ICa
       setTimeout(() => {
         setIsCharacterAnimating(false);
         setShowCelebration(false);
-        setShowActionLabel(false);
-        if (currentAction < actions.length - 1) {
-          setCurrentAction(prev => prev + 1);
+        if (round < totalRounds) {
+          setIsTransitioning(true);
+          setTimeout(() => {
+            setRound(prev => prev + 1);
+            setCurrentAction((currentAction + 1) % actions.length);
+            setSelectedCharacter(null);
+            setIsTransitioning(false);
+          }, 500);
         } else {
-          setGameState('final');
+          handleGameCompletion();
         }
       }, 2000);
     } else {
+      // Play error sound
       playGameSound('error');
       setIsError(true);
       
@@ -135,23 +154,28 @@ export function ICanDoItAllGame({ isDarkMode, isVibrant, onExit, language }: ICa
     }
   };
 
-  // Animated character component
+  // Enhanced Character component with improved animations
   const Character = ({ action = '', onClick, index }: { action?: string; onClick?: () => void; index: number }) => {
     const actionData = actions.find(a => a.id === action) || actions[0];
+    const isCorrect = action === actions[currentAction].id;
+    const isSelected = selectedCharacter === index;
     
     return (
       <button
         onClick={onClick}
-        disabled={showCelebration}
+        disabled={showCelebration || gameComplete}
         className={`
-          relative w-48 h-48
-          transform transition-all duration-300
+          relative w-48 h-48 md:w-64 md:h-64
+          transform transition-all duration-500
           hover:scale-105 focus:outline-none
-          ${selectedCharacter === index && isError ? 'animate-[shake_0.5s_ease-in-out]' : ''}
-          ${action === actions[currentAction].id && isCharacterAnimating ? 'animate-bounce' : ''}
+          ${isSelected && isError ? 'animate-shake animate-wrong-glow' : ''}
+          ${isCorrect && showActionLabel ? 'animate-success-pulse animate-correct-glow' : ''}
           disabled:opacity-50
+          rounded-2xl
+          overflow-hidden
         `}
       >
+        {/* Character Body */}
         <div className={`
           absolute inset-0
           ${isVibrant
@@ -160,59 +184,62 @@ export function ICanDoItAllGame({ isDarkMode, isVibrant, onExit, language }: ICa
               ? 'bg-gray-700'
               : 'bg-purple-600'
           }
-          rounded-full
-          shadow-lg
+          rounded-2xl
         `}>
-          {/* Character face */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
-            <div className="flex space-x-4 mb-4">
-              <div className="w-4 h-4 rounded-full bg-white"></div>
-              <div className="w-4 h-4 rounded-full bg-white"></div>
+          {/* Character Face */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            {/* Eyes */}
+            <div className="flex space-x-6 mb-4">
+              <div className="w-6 h-6 rounded-full bg-white"></div>
+              <div className="w-6 h-6 rounded-full bg-white"></div>
             </div>
-            <div className="w-8 h-2 bg-white rounded-full"></div>
+            {/* Mouth */}
+            <div className="w-12 h-3 bg-white rounded-full"></div>
 
             {/* Action-specific animations */}
-            {action === 'wave' && (
-              <div className="absolute -right-4 top-1/2">
-                <div className="w-8 h-2 bg-yellow-400 rounded-full animate-wave"></div>
-              </div>
-            )}
-            {action === 'clap' && (
-              <div className="absolute -bottom-4 flex justify-center w-full">
-                <div className="relative">
-                  <div className="absolute w-8 h-8 bg-yellow-400 rounded-full -left-6 animate-[clap_0.5s_ease-in-out_infinite]"></div>
-                  <div className="absolute w-8 h-8 bg-yellow-400 rounded-full left-2 animate-[clap_0.5s_ease-in-out_infinite_reverse]"></div>
+            {action === 'running' && (
+              <div className="absolute -bottom-4 w-full">
+                <div className="relative h-8">
+                  <div className="absolute w-6 h-12 bg-yellow-400 rounded-full left-1/3 animate-[run_0.5s_ease-in-out_infinite]"></div>
+                  <div className="absolute w-6 h-12 bg-yellow-400 rounded-full right-1/3 animate-[run_0.5s_ease-in-out_infinite_reverse]"></div>
                 </div>
               </div>
             )}
-            {action === 'stomp' && (
+
+            {action === 'jumping' && (
               <>
-                <div className="absolute -bottom-4 flex justify-center w-full">
-                  <div className="relative">
-                    <div className="absolute w-12 h-4 bg-yellow-400 rounded-full -left-8 animate-[stomp-left_0.5s_ease-in-out_infinite]"></div>
-                    <div className="absolute w-12 h-4 bg-yellow-400 rounded-full left-2 animate-[stomp-right_0.5s_ease-in-out_infinite_0.25s]"></div>
-                  </div>
+                <div className="absolute -bottom-4 w-full">
+                  <div className="w-16 h-4 bg-yellow-400 rounded-full mx-auto"></div>
                 </div>
-                <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2">
-                  <div className="w-32 h-1 bg-gray-400/50 rounded-full animate-[shake_0.5s_ease-in-out_infinite]"></div>
-                </div>
+                <div className="absolute bottom-0 w-32 h-2 bg-black/20 rounded-full mx-auto animate-shadow"></div>
               </>
             )}
 
             {/* Action Label */}
-            {action === actions[currentAction].id && showActionLabel && (
+            {isCorrect && showActionLabel && (
               <div className={`
                 absolute -top-8 left-1/2 transform -translate-x-1/2
                 bg-black/50 backdrop-blur-sm
                 text-white text-center px-4 py-2 rounded-full
-                font-bold text-sm
+                font-bold text-lg
                 transition-opacity duration-300
+                flex items-center gap-2
               `}>
-                {actionData.text[language as keyof typeof actionData.text]}
+                <span>{actionData.icon}</span>
+                <span>{actionData.text[language as keyof typeof actionData.text]}</span>
               </div>
             )}
           </div>
         </div>
+
+        {/* Success Checkmark */}
+        {isCorrect && showActionLabel && (
+          <div className="absolute -top-2 -right-2 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+            <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+        )}
       </button>
     );
   };
@@ -277,8 +304,8 @@ export function ICanDoItAllGame({ isDarkMode, isVibrant, onExit, language }: ICa
                 ${isDarkMode ? 'text-white' : 'text-gray-900'}
               `}>
                 {language === 'es'
-                  ? '¡Puedo Saludar, Saltar, Aplaudir y Pisar Fuerte!'
-                  : 'I Can Wave, Jump, Clap, and Stomp!'}
+                  ? '¡Puedo Correr, Saltar y Girar!'
+                  : 'I Can Run, Jump, and Spin!'}
               </h1>
 
               <div className="grid grid-cols-2 gap-8">
@@ -355,7 +382,7 @@ export function ICanDoItAllGame({ isDarkMode, isVibrant, onExit, language }: ICa
                   : 'Amazing! What can YOU do?'}
               </h2>
 
-              <Character action="wave" index={0} />
+              <Character action="running" index={0} />
 
               <p className={`
                 text-xl text-center
@@ -371,6 +398,8 @@ export function ICanDoItAllGame({ isDarkMode, isVibrant, onExit, language }: ICa
                   onClick={() => {
                     setCurrentAction(0);
                     setScore(0);
+                    setRound(1);
+                    setGameComplete(false);
                     setGameState('playing');
                   }}
                   className={`
