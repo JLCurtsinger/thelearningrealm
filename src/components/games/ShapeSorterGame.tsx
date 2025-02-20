@@ -60,9 +60,11 @@ export function ShapeSorterGame({ isDarkMode, isVibrant, onExit, language }: Sha
   const [showShapeLabel, setShowShapeLabel] = useState(false);
   const [isShapeError, setIsShapeError] = useState(false);
   const [gameComplete, setGameComplete] = useState(false);
+  const [promptReady, setPromptReady] = useState(false);
 
+  // Initialize game
   useEffect(() => {
-    generateNewRound();
+    generateNewRound(0);
   }, []);
 
   // Handle game completion
@@ -102,13 +104,15 @@ export function ShapeSorterGame({ isDarkMode, isVibrant, onExit, language }: Sha
     }
   };
 
-  const generateNewRound = () => {
+  // Generate new round with synchronized shapes and prompts
+  const generateNewRound = (shapeIndex: number) => {
     setIsTransitioning(true);
+    setPromptReady(false);
     setShowShapeLabel(false);
     setSelectedShape(null);
     
-    // Always include the target shape in options
-    const targetShape = shapes[currentShape];
+    // Get target shape and ensure it's included in options
+    const targetShape = shapes[shapeIndex];
     
     // Get remaining shapes excluding the target shape
     const otherShapes = shapes.filter(s => s.id !== targetShape.id);
@@ -124,23 +128,27 @@ export function ShapeSorterGame({ isDarkMode, isVibrant, onExit, language }: Sha
     
     setOptions(allOptions);
 
-    // Speak the prompt after a short delay to ensure synchronization
+    // Ensure visual transition is complete before speaking prompt
     setTimeout(() => {
+      setIsTransitioning(false);
+      setPromptReady(true);
+      
+      // Speak the prompt only after transition and when ready
       if (soundEnabled) {
         const prompt = language === 'es'
           ? `¿Puedes encontrar el ${targetShape.name.es}?`
           : `Can you find the ${targetShape.name.en}?`;
         speakText(prompt, language === 'es' ? 'es-ES' : 'en-US');
       }
-      setIsTransitioning(false);
     }, 300);
   };
 
   const handleShapeClick = (selectedShape: typeof shapes[0]) => {
-    if (gameComplete) return;
+    if (gameComplete || !promptReady) return;
     setSelectedShape(selectedShape.id);
 
-    if (selectedShape.id === shapes[currentShape].id) {
+    const targetShape = shapes[currentShape];
+    if (selectedShape.id === targetShape.id) {
       playGameSound('success');
       setScore(score + 1);
       setShowCelebration(true);
@@ -158,9 +166,10 @@ export function ShapeSorterGame({ isDarkMode, isVibrant, onExit, language }: Sha
         setIsShapeAnimating(false);
         setShowCelebration(false);
         if (round < totalRounds) {
+          const nextShape = (currentShape + 1) % shapes.length;
+          setCurrentShape(nextShape);
           setRound(prev => prev + 1);
-          setCurrentShape((currentShape + 1) % shapes.length);
-          generateNewRound();
+          generateNewRound(nextShape);
         } else {
           handleGameCompletion();
         }
@@ -234,6 +243,8 @@ export function ShapeSorterGame({ isDarkMode, isVibrant, onExit, language }: Sha
             <h2 className={`
               text-2xl font-bold font-comic
               ${isDarkMode ? 'text-white' : 'text-gray-900'}
+              ${isTransitioning ? 'opacity-0' : 'opacity-100'}
+              transition-opacity duration-300
             `}>
               {language === 'es'
                 ? `¿Puedes encontrar el ${shapes[currentShape].name.es}?`
@@ -251,7 +262,7 @@ export function ShapeSorterGame({ isDarkMode, isVibrant, onExit, language }: Sha
               <button
                 key={index}
                 onClick={() => handleShapeClick(shape)}
-                disabled={gameComplete}
+                disabled={gameComplete || !promptReady}
                 className={`
                   aspect-square rounded-2xl
                   flex items-center justify-center
@@ -305,12 +316,14 @@ export function ShapeSorterGame({ isDarkMode, isVibrant, onExit, language }: Sha
           {/* Controls */}
           <div className="flex justify-center space-x-4 mt-8">
             <button
-              onClick={generateNewRound}
+              onClick={() => generateNewRound(currentShape)}
+              disabled={gameComplete}
               className={`
                 p-3 rounded-full
                 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}
                 shadow-lg
                 transition-transform hover:scale-110
+                disabled:opacity-50
               `}
             >
               <RefreshCw className="w-6 h-6" />
