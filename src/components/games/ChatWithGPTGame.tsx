@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Volume2, Star, Sparkles, Send } from 'lucide-react';
 import { useGameAudio } from './GameAudioContext';
 
@@ -9,13 +9,17 @@ interface ChatWithGPTGameProps {
   language: string;
 }
 
-// Animal data with sounds and responses
+// Animal data with sounds, responses, and alternative names
 const animals = [
   {
     id: 'cat',
     image: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=300&h=300',
     sound: { en: 'meow', es: 'miau' },
     name: { en: 'cat', es: 'gato' },
+    alternativeNames: {
+      en: ['kitty', 'kitten', 'cats', 'kittie'],
+      es: ['gatito', 'gata', 'gatitos', 'gatos']
+    },
     responses: {
       correct: {
         en: "That's right! Can you meow like a cat?",
@@ -32,6 +36,10 @@ const animals = [
     image: 'https://images.unsplash.com/photo-1517849845537-4d257902454a?auto=format&fit=crop&w=300&h=300',
     sound: { en: 'woof', es: 'guau' },
     name: { en: 'dog', es: 'perro' },
+    alternativeNames: {
+      en: ['puppy', 'doggy', 'dogs', 'pup'],
+      es: ['perrito', 'perra', 'perritos', 'perros']
+    },
     responses: {
       correct: {
         en: "Yes! Can you bark like a dog?",
@@ -48,6 +56,10 @@ const animals = [
     image: 'https://images.unsplash.com/photo-1570042225831-d98fa7577f1e?auto=format&fit=crop&w=300&h=300',
     sound: { en: 'moo', es: 'mu' },
     name: { en: 'cow', es: 'vaca' },
+    alternativeNames: {
+      en: ['calf', 'cattle', 'cows', 'bovine'],
+      es: ['vaquita', 'toro', 'vaquitas', 'vacas']
+    },
     responses: {
       correct: {
         en: "Correct! Can you moo like a cow?",
@@ -73,6 +85,14 @@ export function ChatWithGPTGame({ isDarkMode, isVibrant, onExit, language }: Cha
   const [isAnimalAnimating, setIsAnimalAnimating] = useState(false);
   const [showNameOverlay, setShowNameOverlay] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [attempts, setAttempts] = useState(0);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   useEffect(() => {
     if (soundEnabled) {
@@ -83,6 +103,35 @@ export function ChatWithGPTGame({ isDarkMode, isVibrant, onExit, language }: Cha
       speakText(initialPrompt, language === 'es' ? 'es-ES' : 'en-US');
     }
   }, []);
+
+  const scrollToBottom = () => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  // Check if the answer is correct using fuzzy matching
+  const isAnswerCorrect = (input: string, animal: typeof animals[0]): boolean => {
+    const normalizedInput = input.toLowerCase().trim();
+    const mainName = animal.name[language as keyof typeof animal.name].toLowerCase();
+    const alternativeNames = animal.alternativeNames[language as keyof typeof animal.alternativeNames];
+    
+    // Check exact matches first
+    if (normalizedInput === mainName) return true;
+    
+    // Check alternative names
+    if (alternativeNames.some(name => normalizedInput === name.toLowerCase())) return true;
+    
+    // Check for close matches (simple fuzzy matching)
+    const closeMatch = (a: string, b: string) => {
+      if (a.length < 3) return a === b;
+      if (Math.abs(a.length - b.length) > 2) return false;
+      return a.includes(b) || b.includes(a);
+    };
+    
+    return closeMatch(normalizedInput, mainName) ||
+           alternativeNames.some(name => closeMatch(normalizedInput, name.toLowerCase()));
+  };
 
   const handleUserInput = () => {
     if (!userInput.trim()) return;
@@ -96,33 +145,49 @@ export function ChatWithGPTGame({ isDarkMode, isVibrant, onExit, language }: Cha
 
     setTimeout(() => {
       if (gameState === 'name') {
-        const isCorrect = inputValue.toLowerCase().includes(
-          animal.name[language as keyof typeof animal.name].toLowerCase()
-        );
+        const isCorrect = isAnswerCorrect(inputValue, animal);
 
         if (isCorrect) {
           playGameSound('success');
           setIsAnimalAnimating(true);
           setShowNameOverlay(true);
+          inputRef.current?.classList.add('animate-success-pulse');
           
           const response = animal.responses.correct[language as keyof typeof animal.responses.correct];
           setMessages(prev => [...prev, { text: response, isUser: false }]);
           speakText(response, language === 'es' ? 'es-ES' : 'en-US');
           
           setGameState('sound');
+          setAttempts(0);
           
           setTimeout(() => {
             setIsAnimalAnimating(false);
+            inputRef.current?.classList.remove('animate-success-pulse');
           }, 1000);
         } else {
           playGameSound('error');
           setIsInputError(true);
+          setAttempts(prev => prev + 1);
+          inputRef.current?.classList.add('animate-shake');
           
-          const tryAgain = language === 'es' ? '¡Inténtalo de nuevo!' : 'Try again!';
-          setMessages(prev => [...prev, { text: tryAgain, isUser: false }]);
-          speakText(tryAgain, language === 'es' ? 'es-ES' : 'en-US');
+          let tryAgainMessage = language === 'es' ? '¡Inténtalo de nuevo!' : 'Try again!';
           
-          setTimeout(() => setIsInputError(false), 500);
+          // Show hint after 3 attempts
+          if (attempts >= 2) {
+            const correctName = animal.name[language as keyof typeof animal.name];
+            tryAgainMessage = language === 'es'
+              ? `Pista: Es un "${correctName}"`
+              : `Hint: It's a "${correctName}"`;
+            setUserInput(correctName); // Auto-fill the correct answer
+          }
+          
+          setMessages(prev => [...prev, { text: tryAgainMessage, isUser: false }]);
+          speakText(tryAgainMessage, language === 'es' ? 'es-ES' : 'en-US');
+          
+          setTimeout(() => {
+            setIsInputError(false);
+            inputRef.current?.classList.remove('animate-shake');
+          }, 500);
         }
       } else if (gameState === 'sound') {
         const animalSound = animal.sound[language as keyof typeof animal.sound];
@@ -131,6 +196,7 @@ export function ChatWithGPTGame({ isDarkMode, isVibrant, onExit, language }: Cha
         if (isCorrect) {
           playGameSound('success');
           setIsAnimalAnimating(true);
+          inputRef.current?.classList.add('animate-success-pulse');
           
           const response = animal.responses.sound[language as keyof typeof animal.responses.sound];
           setMessages(prev => [...prev, { text: response, isUser: false }]);
@@ -138,9 +204,11 @@ export function ChatWithGPTGame({ isDarkMode, isVibrant, onExit, language }: Cha
           
           setScore(score + 1);
           setShowCelebration(true);
+          setAttempts(0);
           
           setTimeout(() => {
             setIsAnimalAnimating(false);
+            inputRef.current?.classList.remove('animate-success-pulse');
             setShowCelebration(false);
             if (currentAnimal < animals.length - 1) {
               setIsTransitioning(true);
@@ -166,12 +234,27 @@ export function ChatWithGPTGame({ isDarkMode, isVibrant, onExit, language }: Cha
         } else {
           playGameSound('error');
           setIsInputError(true);
+          setAttempts(prev => prev + 1);
+          inputRef.current?.classList.add('animate-shake');
           
-          const tryAgain = language === 'es' ? '¡Inténtalo de nuevo!' : 'Try again!';
-          setMessages(prev => [...prev, { text: tryAgain, isUser: false }]);
-          speakText(tryAgain, language === 'es' ? 'es-ES' : 'en-US');
+          let tryAgainMessage = language === 'es' ? '¡Inténtalo de nuevo!' : 'Try again!';
           
-          setTimeout(() => setIsInputError(false), 500);
+          // Show hint after 3 attempts
+          if (attempts >= 2) {
+            const correctSound = animal.sound[language as keyof typeof animal.sound];
+            tryAgainMessage = language === 'es'
+              ? `Pista: Hace "${correctSound}"`
+              : `Hint: It goes "${correctSound}"`;
+            setUserInput(correctSound); // Auto-fill the correct answer
+          }
+          
+          setMessages(prev => [...prev, { text: tryAgainMessage, isUser: false }]);
+          speakText(tryAgainMessage, language === 'es' ? 'es-ES' : 'en-US');
+          
+          setTimeout(() => {
+            setIsInputError(false);
+            inputRef.current?.classList.remove('animate-shake');
+          }, 500);
         }
       }
     }, 500);
@@ -183,15 +266,6 @@ export function ChatWithGPTGame({ isDarkMode, isVibrant, onExit, language }: Cha
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-4">
-            <div className={`
-              flex items-center space-x-2 px-4 py-2 rounded-full
-              ${isDarkMode ? 'bg-gray-800' : 'bg-white'}
-              shadow-lg
-            `}>
-              <Star className="w-5 h-5 text-yellow-400" />
-              <span className="font-bold">{score}</span>
-            </div>
-            
             {/* Progress Indicator */}
             <div className={`
               px-4 py-2 rounded-full font-bold
@@ -201,6 +275,15 @@ export function ChatWithGPTGame({ isDarkMode, isVibrant, onExit, language }: Cha
               {language === 'es' 
                 ? `Animal ${currentAnimal + 1} de ${animals.length}`
                 : `Animal ${currentAnimal + 1} of ${animals.length}`}
+            </div>
+
+            <div className={`
+              flex items-center space-x-2 px-4 py-2 rounded-full
+              ${isDarkMode ? 'bg-gray-800' : 'bg-white'}
+              shadow-lg
+            `}>
+              <Star className="w-5 h-5 text-yellow-400" />
+              <span className="font-bold">{score}</span>
             </div>
           </div>
 
@@ -276,11 +359,13 @@ export function ChatWithGPTGame({ isDarkMode, isVibrant, onExit, language }: Cha
                 </div>
               </div>
             ))}
+            <div ref={messagesEndRef} /> {/* Scroll anchor */}
           </div>
 
           {/* Input Area */}
           <div className="flex gap-4">
             <input
+              ref={inputRef}
               type="text"
               value={userInput}
               onChange={(e) => setUserInput(e.target.value)}
@@ -292,10 +377,6 @@ export function ChatWithGPTGame({ isDarkMode, isVibrant, onExit, language }: Cha
                 ${isDarkMode
                   ? 'bg-gray-700 text-white placeholder-gray-400'
                   : 'bg-gray-100 text-gray-900 placeholder-gray-500'
-                }
-                ${isInputError
-                  ? 'border-2 border-red-500 animate-[shake_0.5s_ease-in-out]'
-                  : 'border-2 border-transparent'
                 }
                 focus:outline-none focus:ring-2 focus:ring-purple-400
               `}
@@ -311,6 +392,7 @@ export function ChatWithGPTGame({ isDarkMode, isVibrant, onExit, language }: Cha
                 text-white
                 transform hover:scale-105
                 transition-all duration-300
+                shadow-lg
               `}
             >
               <Send className="w-6 h-6" />

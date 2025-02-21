@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Volume2, Star, Sparkles, Play, XCircle, ArrowLeft, ArrowRight, Home } from 'lucide-react';
+import { Volume2, Star, Sparkles, Play, XCircle } from 'lucide-react';
 import { useGameAudio } from './GameAudioContext';
 
 interface ICanDoItAllGameProps {
@@ -16,97 +16,59 @@ const actions = [
     animation: 'animate-run',
     text: { en: 'running', es: 'corriendo' },
     prompt: { en: 'Who is running?', es: '¿Quién está corriendo?' },
-    icon: '🏃',
-    sound: 'whoosh'
+    icon: '🏃'
   },
   {
     id: 'jumping',
     animation: 'animate-jump',
     text: { en: 'jumping', es: 'saltando' },
     prompt: { en: 'Who is jumping?', es: '¿Quién está saltando?' },
-    icon: '🦘',
-    sound: 'boing'
+    icon: '🦘'
   },
   {
     id: 'spinning',
-    animation: 'animate-spin-slow',
+    animation: 'animate-spin',
     text: { en: 'spinning', es: 'girando' },
     prompt: { en: 'Who is spinning?', es: '¿Quién está girando?' },
-    icon: '🌀',
-    sound: 'whirl'
+    icon: '🌀'
+  },
+  {
+    id: 'stomping',
+    animation: 'animate-stomp',
+    text: { en: 'stomping', es: 'pisando fuerte' },
+    prompt: { en: 'Who is stomping?', es: '¿Quién está pisando fuerte?' },
+    icon: '👣'
   }
 ];
 
 export function ICanDoItAllGame({ isDarkMode, isVibrant, onExit, language }: ICanDoItAllGameProps) {
   const { soundEnabled, toggleSound, playGameSound, speakText } = useGameAudio();
-  const [gameState, setGameState] = useState<'intro' | 'playing' | 'final'>('intro');
   const [currentAction, setCurrentAction] = useState(0);
   const [score, setScore] = useState(0);
   const [showCelebration, setShowCelebration] = useState(false);
+  const [isStarted, setIsStarted] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [selectedCharacter, setSelectedCharacter] = useState<number | null>(null);
   const [isCharacterAnimating, setIsCharacterAnimating] = useState(false);
   const [showActionLabel, setShowActionLabel] = useState(false);
   const [isError, setIsError] = useState(false);
-  const [round, setRound] = useState(1);
-  const [gameComplete, setGameComplete] = useState(false);
-  const totalRounds = actions.length;
 
   useEffect(() => {
-    if (soundEnabled && gameState === 'intro') {
-      speakIntro();
+    if (soundEnabled && !isStarted) {
+      speakText(
+        language === 'es' 
+          ? '¡Vamos a movernos!' 
+          : "Let's move!",
+        language === 'es' ? 'es-ES' : 'en-US'
+      );
     }
-  }, [gameState]);
+  }, [isStarted]);
 
-  useEffect(() => {
-    if (gameState === 'playing') {
-      generateNewRound();
-    }
-  }, [gameState, currentAction]);
-
-  const speakIntro = () => {
-    const intro = language === 'es' 
-      ? '¡Vamos a practicar todo lo que hemos aprendido!'
-      : "Let's practice everything we've learned!";
-    speakText(intro, language === 'es' ? 'es-ES' : 'en-US');
-  };
-
-  const speakPrompt = () => {
-    const prompt = actions[currentAction].prompt[language as keyof typeof actions[0]['prompt']];
-    speakText(prompt, language === 'es' ? 'es-ES' : 'en-US');
-  };
-
-  const generateNewRound = () => {
-    setIsTransitioning(true);
-    setShowActionLabel(false);
-    setSelectedCharacter(null);
-    setIsError(false);
-
-    setTimeout(() => {
-      speakPrompt();
-      setIsTransitioning(false);
-    }, 300);
-  };
-
-  const handleGameCompletion = () => {
-    setGameComplete(true);
-    setGameState('final');
-  };
-
-  const handleActionClick = (selectedAction: string, index: number) => {
-    if (gameComplete) return;
+  const handleCharacterClick = (action: string, index: number) => {
     setSelectedCharacter(index);
 
-    if (selectedAction === actions[currentAction].id) {
-      // Play success sound effect
+    if (action === actions[currentAction].id) {
       playGameSound('success');
-      
-      // Play action-specific sound
-      const actionSound = actions[currentAction].sound;
-      if (actionSound) {
-        playGameSound(actionSound, 0.3);
-      }
-
       setIsCharacterAnimating(true);
       setShowActionLabel(true);
       
@@ -123,20 +85,17 @@ export function ICanDoItAllGame({ isDarkMode, isVibrant, onExit, language }: ICa
       setTimeout(() => {
         setIsCharacterAnimating(false);
         setShowCelebration(false);
-        if (round < totalRounds) {
+        setShowActionLabel(false);
+        if (currentAction < actions.length - 1) {
           setIsTransitioning(true);
           setTimeout(() => {
-            setRound(prev => prev + 1);
-            setCurrentAction((currentAction + 1) % actions.length);
+            setCurrentAction(prev => prev + 1);
             setSelectedCharacter(null);
             setIsTransitioning(false);
           }, 500);
-        } else {
-          handleGameCompletion();
         }
       }, 2000);
     } else {
-      // Play error sound
       playGameSound('error');
       setIsError(true);
       
@@ -163,16 +122,13 @@ export function ICanDoItAllGame({ isDarkMode, isVibrant, onExit, language }: ICa
     return (
       <button
         onClick={onClick}
-        disabled={showCelebration || gameComplete}
+        disabled={showCelebration}
         className={`
-          relative w-48 h-48 md:w-64 md:h-64
-          transform transition-all duration-500
+          relative w-48 h-48
+          transform transition-all duration-300
           hover:scale-105 focus:outline-none
-          ${isSelected && isError ? 'animate-shake animate-wrong-glow' : ''}
-          ${isCorrect && showActionLabel ? 'animate-success-pulse animate-correct-glow' : ''}
+          ${isSelected && isError ? 'animate-shake' : ''}
           disabled:opacity-50
-          rounded-2xl
-          overflow-hidden
         `}
       >
         {/* Character Body */}
@@ -184,53 +140,61 @@ export function ICanDoItAllGame({ isDarkMode, isVibrant, onExit, language }: ICa
               ? 'bg-gray-700'
               : 'bg-purple-600'
           }
-          rounded-2xl
+          rounded-full
+          shadow-lg
+          ${isCharacterAnimating && isCorrect ? actionData.animation : ''}
         `}>
           {/* Character Face */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            {/* Eyes */}
-            <div className="flex space-x-6 mb-4">
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
+            <div className="flex space-x-4 mb-4">
               <div className="w-6 h-6 rounded-full bg-white"></div>
               <div className="w-6 h-6 rounded-full bg-white"></div>
             </div>
-            {/* Mouth */}
             <div className="w-12 h-3 bg-white rounded-full"></div>
-
-            {/* Action-specific animations */}
-            {action === 'running' && (
-              <div className="absolute -bottom-4 w-full">
-                <div className="relative h-8">
-                  <div className="absolute w-6 h-12 bg-yellow-400 rounded-full left-1/3 animate-[run_0.5s_ease-in-out_infinite]"></div>
-                  <div className="absolute w-6 h-12 bg-yellow-400 rounded-full right-1/3 animate-[run_0.5s_ease-in-out_infinite_reverse]"></div>
-                </div>
-              </div>
-            )}
-
-            {action === 'jumping' && (
-              <>
-                <div className="absolute -bottom-4 w-full">
-                  <div className="w-16 h-4 bg-yellow-400 rounded-full mx-auto"></div>
-                </div>
-                <div className="absolute bottom-0 w-32 h-2 bg-black/20 rounded-full mx-auto animate-shadow"></div>
-              </>
-            )}
-
-            {/* Action Label */}
-            {isCorrect && showActionLabel && (
-              <div className={`
-                absolute -top-8 left-1/2 transform -translate-x-1/2
-                bg-black/50 backdrop-blur-sm
-                text-white text-center px-4 py-2 rounded-full
-                font-bold text-lg
-                transition-opacity duration-300
-                flex items-center gap-2
-              `}>
-                <span>{actionData.icon}</span>
-                <span>{actionData.text[language as keyof typeof actionData.text]}</span>
-              </div>
-            )}
           </div>
+
+          {/* Running Legs */}
+          {action === 'running' && (
+            <div className="absolute -bottom-4 w-full">
+              <div className="relative h-8">
+                <div className="absolute w-6 h-12 bg-yellow-400 rounded-full left-1/3 animate-run-legs"></div>
+                <div className="absolute w-6 h-12 bg-yellow-400 rounded-full right-1/3 animate-run-legs" style={{ animationDelay: '0.2s' }}></div>
+              </div>
+            </div>
+          )}
+
+          {/* Jumping Shadow */}
+          {action === 'jumping' && (
+            <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 w-32">
+              <div className="h-2 bg-black/20 rounded-full animate-jump-shadow"></div>
+            </div>
+          )}
+
+          {/* Stomping Feet */}
+          {action === 'stomping' && (
+            <div className="absolute -bottom-4 w-full">
+              <div className="relative h-8">
+                <div className="absolute w-8 h-4 bg-yellow-400 rounded-full left-1/4 animate-stomp-feet"></div>
+                <div className="absolute w-8 h-4 bg-yellow-400 rounded-full right-1/4 animate-stomp-feet" style={{ animationDelay: '0.2s' }}></div>
+              </div>
+            </div>
+          )}
         </div>
+
+        {/* Action Label */}
+        {isCorrect && showActionLabel && (
+          <div className={`
+            absolute -top-8 left-1/2 transform -translate-x-1/2
+            bg-black/50 backdrop-blur-sm
+            text-white text-center px-4 py-2 rounded-full
+            font-bold text-lg
+            transition-opacity duration-300
+            flex items-center gap-2
+          `}>
+            <span>{actionData.icon}</span>
+            <span>{actionData.text[language as keyof typeof actionData.text]}</span>
+          </div>
+        )}
 
         {/* Success Checkmark */}
         {isCorrect && showActionLabel && (
@@ -251,12 +215,11 @@ export function ICanDoItAllGame({ isDarkMode, isVibrant, onExit, language }: ICa
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-4">
             {/* Progress Indicator */}
-            {gameState === 'playing' && (
+            {isStarted && (
               <div className={`
                 px-4 py-2 rounded-full font-bold
                 ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}
                 shadow-lg
-                transition-opacity duration-300
               `}>
                 {language === 'es'
                   ? `Acción ${currentAction + 1} de ${actions.length}`
@@ -293,8 +256,8 @@ export function ICanDoItAllGame({ isDarkMode, isVibrant, onExit, language }: ICa
           ${isDarkMode ? 'bg-gray-800' : 'bg-white'}
           shadow-xl
         `}>
-          {gameState === 'intro' ? (
-            // Title Screen with enhanced fade-in
+          {!isStarted ? (
+            // Title Screen
             <div className={`
               flex flex-col items-center space-y-8
               animate-fade-in
@@ -304,8 +267,8 @@ export function ICanDoItAllGame({ isDarkMode, isVibrant, onExit, language }: ICa
                 ${isDarkMode ? 'text-white' : 'text-gray-900'}
               `}>
                 {language === 'es'
-                  ? '¡Puedo Correr, Saltar y Girar!'
-                  : 'I Can Run, Jump, and Spin!'}
+                  ? '¡Puedo Hacer Todo!'
+                  : 'I Can Do It All!'}
               </h1>
 
               <div className="grid grid-cols-2 gap-8">
@@ -322,7 +285,7 @@ export function ICanDoItAllGame({ isDarkMode, isVibrant, onExit, language }: ICa
                 onClick={() => {
                   setIsTransitioning(true);
                   setTimeout(() => {
-                    setGameState('playing');
+                    setIsStarted(true);
                     setIsTransitioning(false);
                   }, 300);
                 }}
@@ -343,7 +306,7 @@ export function ICanDoItAllGame({ isDarkMode, isVibrant, onExit, language }: ICa
                 <span>{language === 'es' ? 'Comenzar' : 'Start'}</span>
               </button>
             </div>
-          ) : gameState === 'playing' ? (
+          ) : (
             <>
               <div className="flex items-center justify-center gap-2 mb-8">
                 <h2 className={`
@@ -364,78 +327,12 @@ export function ICanDoItAllGame({ isDarkMode, isVibrant, onExit, language }: ICa
                   <Character
                     key={index}
                     action={action.id}
-                    onClick={() => handleActionClick(action.id, index)}
+                    onClick={() => handleCharacterClick(action.id, index)}
                     index={index}
                   />
                 ))}
               </div>
             </>
-          ) : (
-            // Final Screen
-            <div className="flex flex-col items-center space-y-8">
-              <h2 className={`
-                text-4xl font-bold text-center mb-4 font-comic
-                ${isDarkMode ? 'text-white' : 'text-gray-900'}
-              `}>
-                {language === 'es' 
-                  ? '¡Fantástico! ¿Qué puedes hacer TÚ?' 
-                  : 'Amazing! What can YOU do?'}
-              </h2>
-
-              <Character action="running" index={0} />
-
-              <p className={`
-                text-xl text-center
-                ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}
-              `}>
-                {language === 'es'
-                  ? '¡Muéstrame tus movimientos favoritos!'
-                  : 'Show me your favorite moves!'}
-              </p>
-
-              <div className="flex space-x-4">
-                <button
-                  onClick={() => {
-                    setCurrentAction(0);
-                    setScore(0);
-                    setRound(1);
-                    setGameComplete(false);
-                    setGameState('playing');
-                  }}
-                  className={`
-                    px-6 py-3 rounded-xl
-                    flex items-center gap-2
-                    font-bold text-white
-                    transform hover:scale-105
-                    transition-all duration-300
-                    ${isVibrant
-                      ? 'bg-gradient-to-r from-green-500 to-emerald-500'
-                      : 'bg-green-600 hover:bg-green-700'
-                    }
-                    shadow-lg
-                  `}
-                >
-                  <ArrowRight className="w-5 h-5" />
-                  <span>{language === 'es' ? 'Jugar de Nuevo' : 'Play Again'}</span>
-                </button>
-
-                <button
-                  onClick={onExit}
-                  className={`
-                    px-6 py-3 rounded-xl
-                    flex items-center gap-2
-                    font-bold
-                    transform hover:scale-105
-                    transition-all duration-300
-                    ${isDarkMode ? 'bg-gray-700 text-white' : 'bg-gray-100 text-gray-900'}
-                    shadow-lg
-                  `}
-                >
-                  <Home className="w-5 h-5" />
-                  <span>{language === 'es' ? 'Menú Principal' : 'Main Menu'}</span>
-                </button>
-              </div>
-            </div>
           )}
 
           {/* Celebration Overlay */}

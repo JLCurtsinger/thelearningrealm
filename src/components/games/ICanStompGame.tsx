@@ -45,9 +45,9 @@ export function ICanStompGame({ isDarkMode, isVibrant, onExit, language }: ICanS
     playGameSound('success');
 
     try {
-      // Update reward points (10 points per correct identification)
+      // Update reward points
       await updateProgressData(user.uid, {
-        rewardPoints: score * 10
+        rewardPoints: score * 10 // 10 points per correct identification
       });
 
       // Mark lesson as completed
@@ -126,7 +126,7 @@ export function ICanStompGame({ isDarkMode, isVibrant, onExit, language }: ICanS
     }
   };
 
-  // Animated character component
+  // Animated character component with improved stomping animation
   const Character = ({ isStomping = false, onClick, index }: { isStomping?: boolean; onClick?: () => void; index: number }) => (
     <button
       onClick={onClick}
@@ -136,10 +136,11 @@ export function ICanStompGame({ isDarkMode, isVibrant, onExit, language }: ICanS
         transform transition-all duration-300
         hover:scale-105 focus:outline-none
         ${selectedCharacter === index && showError ? 'animate-[shake_0.5s_ease-in-out]' : ''}
-        ${isStomping && isCharacterAnimating ? 'animate-bounce' : ''}
+        ${isStomping && isCharacterAnimating ? 'animate-stomp' : ''}
         disabled:opacity-50
       `}
     >
+      {/* Character Body */}
       <div className={`
         absolute inset-0
         ${isVibrant
@@ -151,45 +152,47 @@ export function ICanStompGame({ isDarkMode, isVibrant, onExit, language }: ICanS
         rounded-full
         shadow-lg
       `}>
-        {/* Character face */}
+        {/* Character Face */}
         <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
           <div className="flex space-x-4 mb-4">
             <div className="w-4 h-4 rounded-full bg-white"></div>
             <div className="w-4 h-4 rounded-full bg-white"></div>
           </div>
           <div className="w-8 h-2 bg-white rounded-full"></div>
-
-          {/* Stomping feet animation */}
-          {isStomping && (
-            <div className="absolute -bottom-4 flex justify-center w-full">
-              <div className="relative">
-                <div className="absolute w-12 h-4 bg-yellow-400 rounded-full -left-8 animate-[stomp-left_0.5s_ease-in-out_infinite]"></div>
-                <div className="absolute w-12 h-4 bg-yellow-400 rounded-full left-2 animate-[stomp-right_0.5s_ease-in-out_infinite_0.25s]"></div>
-              </div>
-            </div>
-          )}
-
-          {/* Ground shake effect for stomping character */}
-          {isStomping && (
-            <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2">
-              <div className="w-32 h-1 bg-gray-400/50 rounded-full animate-[shake_0.5s_ease-in-out_infinite]"></div>
-            </div>
-          )}
-
-          {/* Action Label */}
-          {isStomping && showActionLabel && (
-            <div className={`
-              absolute -top-8 left-1/2 transform -translate-x-1/2
-              bg-black/50 backdrop-blur-sm
-              text-white text-center px-4 py-2 rounded-full
-              font-bold text-sm
-              transition-opacity duration-300
-            `}>
-              {language === 'es' ? '¡Pisando Fuerte!' : 'Stomping!'}
-            </div>
-          )}
         </div>
       </div>
+
+      {/* Stomping Legs and Feet */}
+      {isStomping && (
+        <div className="absolute -bottom-4 flex justify-center w-full">
+          <div className="relative">
+            {/* Left Leg & Foot */}
+            <div className="absolute w-12 h-4 bg-yellow-400 rounded-full -left-8 animate-[stomp-left_0.5s_ease-in-out_infinite]"></div>
+            {/* Right Leg & Foot */}
+            <div className="absolute w-12 h-4 bg-yellow-400 rounded-full left-2 animate-[stomp-right_0.5s_ease-in-out_infinite_0.25s]"></div>
+          </div>
+        </div>
+      )}
+
+      {/* Ground Shadow */}
+      {isStomping && (
+        <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2">
+          <div className="w-32 h-1 bg-gray-400/50 rounded-full animate-[shadow-stomp_0.5s_ease-in-out_infinite]"></div>
+        </div>
+      )}
+
+      {/* Action Label */}
+      {isStomping && showActionLabel && (
+        <div className={`
+          absolute -top-8 left-1/2 transform -translate-x-1/2
+          bg-black/50 backdrop-blur-sm
+          text-white text-center px-4 py-2 rounded-full
+          font-bold text-sm
+          transition-opacity duration-300
+        `}>
+          {language === 'es' ? '¡Pisando Fuerte!' : 'Stomping!'}
+        </div>
+      )}
     </button>
   );
 
