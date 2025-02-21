@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Star, Volume2, Sparkles, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Star, Volume2, Sparkles, RefreshCw, Home } from 'lucide-react';
 import { useGameAudio } from './GameAudioContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { updateProgressData, addCompletedLesson } from '../../utils/progressStorage';
@@ -11,47 +11,61 @@ interface CountingGameProps {
   language: string;
 }
 
-// Item types for counting
-const ITEMS = [
-  { name: 'apple', image: 'https://images.unsplash.com/photo-1579613832125-5d34a13ffe2a?auto=format&fit=crop&w=150&h=150' },
-  { name: 'balloon', image: 'https://images.unsplash.com/photo-1527529482837-4698179dc6ce?auto=format&fit=crop&w=150&h=150' },
-  { name: 'star', image: 'https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=150&h=150' },
-  { name: 'flower', image: 'https://images.unsplash.com/photo-1490750967868-88aa4486c946?auto=format&fit=crop&w=150&h=150' }
+// Shape data with translations and SVG paths
+const shapes = [
+  {
+    id: 1,
+    image: 'https://images.unsplash.com/photo-1579613832125-5d34a13ffe2a?auto=format&fit=crop&w=150&h=150',
+    name: { en: 'apple', es: 'manzana' }
+  },
+  {
+    id: 2,
+    image: 'https://images.unsplash.com/photo-1527529482837-4698179dc6ce?auto=format&fit=crop&w=150&h=150',
+    name: { en: 'balloon', es: 'globo' }
+  },
+  {
+    id: 3,
+    image: 'https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=150&h=150',
+    name: { en: 'star', es: 'estrella' }
+  },
+  {
+    id: 4,
+    image: 'https://images.unsplash.com/photo-1490750967868-88aa4486c946?auto=format&fit=crop&w=150&h=150',
+    name: { en: 'flower', es: 'flor' }
+  }
 ];
 
 export function CountingGame({ isDarkMode, isVibrant, onExit, language }: CountingGameProps) {
   const { user } = useAuth();
-  const [currentItem, setCurrentItem] = useState<typeof ITEMS[0] | null>(null);
-  const [itemCount, setItemCount] = useState(0);
+  const { soundEnabled, toggleSound, playGameSound, speakText } = useGameAudio();
+  const [currentShape, setCurrentShape] = useState(0);
+  const [shapeCount, setShapeCount] = useState(0);
   const [options, setOptions] = useState<number[]>([]);
   const [score, setScore] = useState(0);
   const [showCelebration, setShowCelebration] = useState(false);
-  const [soundEnabled, setSoundEnabled] = useState(true);
-  const [questionNumber, setQuestionNumber] = useState(1);
-  const [totalQuestions] = useState(5); // Fixed number of questions
+  const [round, setRound] = useState(1);
+  const [totalRounds] = useState(5);
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const [showCorrectNumber, setShowCorrectNumber] = useState(false);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [isOptionError, setIsOptionError] = useState(false);
-  const [isItemsAnimating, setIsItemsAnimating] = useState(false);
+  const [isShapeAnimating, setIsShapeAnimating] = useState(false);
+  const [showShapeLabel, setShowShapeLabel] = useState(false);
   const [gameComplete, setGameComplete] = useState(false);
-
-  // Initialize game
-  useEffect(() => {
-    generateNewRound();
-  }, []);
+  const [showVictory, setShowVictory] = useState(false);
+  const [redirectTimer, setRedirectTimer] = useState<number | null>(null);
 
   // Handle game completion
   const handleGameCompletion = async () => {
     if (!user) return;
 
+    setShowVictory(true);
     setGameComplete(true);
     playGameSound('success');
 
     try {
-      // Update reward points (10 points per correct count)
+      // Update reward points
       await updateProgressData(user.uid, {
-        rewardPoints: score * 10
+        rewardPoints: score * 10 // 10 points per correct count
       });
 
       // Mark lesson as completed
@@ -65,32 +79,46 @@ export function CountingGame({ isDarkMode, isVibrant, onExit, language }: Counti
         speakText(victoryMessage, language === 'es' ? 'es-ES' : 'en-US');
       }
 
-      // Return to learning path after delay
-      setTimeout(() => {
-        onExit();
-      }, 3000);
+      // Start redirect countdown
+      let countdown = 5;
+      const timer = window.setInterval(() => {
+        countdown--;
+        setRedirectTimer(countdown);
+        
+        if (countdown <= 0) {
+          clearInterval(timer);
+          onExit(); // Redirect back to learning path
+        }
+      }, 1000);
+
     } catch (error) {
       console.error('Error updating progress:', error);
       // Still exit after delay even if progress update fails
       setTimeout(() => {
         onExit();
-      }, 3000);
+      }, 5000);
     }
   };
 
-  // Generate a new round
+  // Initialize game
+  useEffect(() => {
+    generateNewRound();
+    return () => {
+      // Clean up any timers when component unmounts
+      if (redirectTimer !== null) {
+        clearInterval(redirectTimer);
+      }
+    };
+  }, []);
+
   const generateNewRound = () => {
     setIsTransitioning(true);
-    setShowCorrectNumber(false);
+    setShowShapeLabel(false);
     setSelectedOption(null);
-    
-    // Select random item
-    const newItem = ITEMS[Math.floor(Math.random() * ITEMS.length)];
-    setCurrentItem(newItem);
     
     // Generate random count (1-5)
     const count = Math.floor(Math.random() * 5) + 1;
-    setItemCount(count);
+    setShapeCount(count);
     
     // Generate number options
     let numberOptions = [count];
@@ -108,13 +136,9 @@ export function CountingGame({ isDarkMode, isVibrant, onExit, language }: Counti
     // Speak the prompt
     if (soundEnabled) {
       const prompt = language === 'es'
-        ? `¿Cuántos ${newItem.name}s ves?`
-        : `How many ${newItem.name}s do you see?`;
-      const utterance = new SpeechSynthesisUtterance(prompt);
-      utterance.rate = 0.8;
-      utterance.pitch = 1.2;
-      utterance.lang = language === 'es' ? 'es-ES' : 'en-US';
-      window.speechSynthesis.speak(utterance);
+        ? `¿Cuántos ${shapes[currentShape].name.es}s ves?`
+        : `How many ${shapes[currentShape].name.en}s do you see?`;
+      speakText(prompt, language === 'es' ? 'es-ES' : 'en-US');
     }
 
     setTimeout(() => {
@@ -122,70 +146,44 @@ export function CountingGame({ isDarkMode, isVibrant, onExit, language }: Counti
     }, 300);
   };
 
-  // Play sound effect
-  const playSound = (type: 'success' | 'wrong') => {
-    if (!soundEnabled) return;
-
-    const sounds = {
-      success: 'https://cdn.pixabay.com/download/audio/2022/03/24/audio_805cb3c75d.mp3',
-      wrong: 'https://cdn.pixabay.com/download/audio/2022/03/24/audio_c8c8a73f04.mp3'
-    };
-
-    const audio = new Audio(sounds[type]);
-    audio.volume = type === 'success' ? 0.3 : 0.2;
-    audio.play();
-  };
-
-  // Handle number selection
-  const handleNumberClick = (number: number) => {
-    if (!currentItem || gameComplete) return;
+  const handleOptionClick = (number: number) => {
+    if (gameComplete) return;
     setSelectedOption(number);
 
-    if (number === itemCount) {
-      // Correct answer
-      playSound('success');
+    if (number === shapeCount) {
+      playGameSound('success');
       setScore(score + 1);
-      setShowCorrectNumber(true);
-      setIsItemsAnimating(true);
+      setShowCelebration(true);
+      setIsShapeAnimating(true);
+      setShowShapeLabel(true);
       
-      // Celebration voice feedback
       if (soundEnabled) {
         const celebration = language === 'es'
           ? '¡Excelente trabajo!'
           : 'Great job!';
-        const utterance = new SpeechSynthesisUtterance(celebration);
-        utterance.rate = 0.8;
-        utterance.pitch = 1.2;
-        utterance.lang = language === 'es' ? 'es-ES' : 'en-US';
-        window.speechSynthesis.speak(utterance);
+        speakText(celebration, language === 'es' ? 'es-ES' : 'en-US');
       }
-
-      setShowCelebration(true);
       
       setTimeout(() => {
-        setIsItemsAnimating(false);
+        setIsShapeAnimating(false);
         setShowCelebration(false);
-        if (questionNumber < totalQuestions) {
-          setQuestionNumber(prev => prev + 1);
+        if (round < totalRounds) {
+          setRound(prev => prev + 1);
+          setCurrentShape((currentShape + 1) % shapes.length);
           generateNewRound();
         } else {
           handleGameCompletion();
         }
       }, 2000);
     } else {
-      // Wrong answer
-      playSound('wrong');
+      playGameSound('error');
       setIsOptionError(true);
       
       if (soundEnabled) {
         const tryAgain = language === 'es'
           ? 'Inténtalo de nuevo'
           : 'Try again';
-        const utterance = new SpeechSynthesisUtterance(tryAgain);
-        utterance.rate = 0.8;
-        utterance.pitch = 1.2;
-        utterance.lang = language === 'es' ? 'es-ES' : 'en-US';
-        window.speechSynthesis.speak(utterance);
+        speakText(tryAgain, language === 'es' ? 'es-ES' : 'en-US');
       }
 
       setTimeout(() => {
@@ -194,8 +192,6 @@ export function CountingGame({ isDarkMode, isVibrant, onExit, language }: Counti
       }, 500);
     }
   };
-
-  if (!currentItem) return null;
 
   return (
     <div className="min-h-screen pt-20 pb-8 px-4">
@@ -222,8 +218,8 @@ export function CountingGame({ isDarkMode, isVibrant, onExit, language }: Counti
               shadow-lg
             `}>
               {language === 'es'
-                ? `Pregunta ${questionNumber} de ${totalQuestions}`
-                : `Question ${questionNumber} of ${totalQuestions}`}
+                ? `Pregunta ${round} de ${totalRounds}`
+                : `Question ${round} of ${totalRounds}`}
             </div>
 
             <div className={`
@@ -250,30 +246,30 @@ export function CountingGame({ isDarkMode, isVibrant, onExit, language }: Counti
               ${isDarkMode ? 'text-white' : 'text-gray-900'}
             `}>
               {language === 'es'
-                ? `¿Cuántos ${currentItem.name}s ves?`
-                : `How many ${currentItem.name}s do you see?`}
+                ? `¿Cuántos ${shapes[currentShape].name.es}s ves?`
+                : `How many ${shapes[currentShape].name.en}s do you see?`}
             </h2>
           </div>
 
-          {/* Items Grid */}
+          {/* Shapes Grid */}
           <div className={`
             grid grid-cols-3 gap-4 mb-8
             transition-opacity duration-300
             ${isTransitioning ? 'opacity-0' : 'opacity-100'}
           `}>
-            {Array.from({ length: itemCount }).map((_, index) => (
+            {Array.from({ length: shapeCount }).map((_, index) => (
               <div
                 key={index}
                 className={`
                   aspect-square rounded-xl overflow-hidden
                   transform transition-all duration-300
-                  ${isItemsAnimating ? 'animate-bounce' : 'hover:scale-105'}
+                  ${isShapeAnimating ? 'animate-bounce' : 'hover:scale-105'}
                   shadow-lg
                 `}
               >
                 <img
-                  src={currentItem.image}
-                  alt={currentItem.name}
+                  src={shapes[currentShape].image}
+                  alt={shapes[currentShape].name[language as keyof typeof shapes[0]['name']]}
                   className="w-full h-full object-cover"
                 />
               </div>
@@ -285,7 +281,7 @@ export function CountingGame({ isDarkMode, isVibrant, onExit, language }: Counti
             {options.map((number, index) => (
               <button
                 key={index}
-                onClick={() => handleNumberClick(number)}
+                onClick={() => handleOptionClick(number)}
                 disabled={showCelebration || gameComplete}
                 className={`
                   w-24 h-24 rounded-2xl
@@ -302,7 +298,7 @@ export function CountingGame({ isDarkMode, isVibrant, onExit, language }: Counti
                     ? 'animate-[shake_0.5s_ease-in-out] border-2 border-red-500'
                     : 'hover:scale-110'
                   }
-                  ${number === itemCount && showCorrectNumber
+                  ${number === shapeCount && showShapeLabel
                     ? 'ring-4 ring-green-500 scale-110'
                     : ''
                   }
@@ -332,7 +328,7 @@ export function CountingGame({ isDarkMode, isVibrant, onExit, language }: Counti
             </button>
             
             <button
-              onClick={() => setSoundEnabled(!soundEnabled)}
+              onClick={toggleSound}
               className={`
                 p-3 rounded-full
                 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}
@@ -344,12 +340,12 @@ export function CountingGame({ isDarkMode, isVibrant, onExit, language }: Counti
             </button>
           </div>
 
-          {/* Celebration Overlay */}
-          {showCelebration && (
+          {/* Celebration/Victory Overlay */}
+          {(showCelebration || showVictory) && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-3xl">
               <div className="text-center">
                 <h3 className="text-4xl font-bold text-white mb-4">
-                  {gameComplete
+                  {showVictory
                     ? language === 'es'
                       ? '¡Felicitaciones! 🎉\n¡Has completado el juego!'
                       : 'Congratulations! 🎉\nYou completed the game!'
@@ -359,28 +355,52 @@ export function CountingGame({ isDarkMode, isVibrant, onExit, language }: Counti
                   }
                 </h3>
                 <div className="flex justify-center space-x-4">
-                  {Array.from({ length: gameComplete ? 6 : 3 }).map((_, i) => (
+                  {Array.from({ length: showVictory ? 6 : 3 }).map((_, i) => (
                     <Sparkles
                       key={i}
                       className={`
                         w-12 h-12 text-yellow-400
-                        ${gameComplete ? 'animate-float' : 'animate-spin'}
+                        ${showVictory ? 'animate-float' : 'animate-spin'}
                       `}
                       style={{
                         animationDelay: `${i * 0.2}s`,
-                        transform: gameComplete
+                        transform: showVictory
                           ? `rotate(${i * 60}deg) translateY(${Math.sin(i) * 20}px)`
                           : 'none'
                       }}
                     />
                   ))}
                 </div>
-                {gameComplete && (
-                  <p className="text-white text-xl mt-4">
-                    {language === 'es'
-                      ? `¡Ganaste ${score * 10} puntos!`
-                      : `You earned ${score * 10} points!`}
-                  </p>
+                {showVictory && (
+                  <>
+                    <p className="text-white text-xl mt-4">
+                      {language === 'es'
+                        ? `¡Ganaste ${score * 10} puntos!`
+                        : `You earned ${score * 10} points!`}
+                    </p>
+                    {redirectTimer !== null && (
+                      <p className="text-white text-lg mt-2">
+                        {language === 'es'
+                          ? `Volviendo al menú en ${redirectTimer}...`
+                          : `Returning to menu in ${redirectTimer}...`}
+                      </p>
+                    )}
+                    <button
+                      onClick={onExit}
+                      className={`
+                        mt-6 px-6 py-3 rounded-xl
+                        flex items-center gap-2 mx-auto
+                        font-bold text-white
+                        transform hover:scale-105
+                        transition-all duration-300
+                        ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100 text-gray-900'}
+                        shadow-lg
+                      `}
+                    >
+                      <Home className="w-5 h-5" />
+                      <span>{language === 'es' ? 'Volver al Menú' : 'Return to Menu'}</span>
+                    </button>
+                  </>
                 )}
               </div>
             </div>
