@@ -28,6 +28,48 @@
     animation-delay: 4s;
   }
 
+  /* Enhanced running animation with leg movement */
+  @keyframes run {
+    0%, 100% {
+      transform: translateX(-5px) rotate(-5deg) translateY(0);
+    }
+    25% {
+      transform: translateX(0) rotate(0deg) translateY(-2px);
+    }
+    50% {
+      transform: translateX(5px) rotate(5deg) translateY(0);
+    }
+    75% {
+      transform: translateX(0) rotate(0deg) translateY(-2px);
+    }
+  }
+
+  /* Running legs animation */
+  @keyframes run-legs {
+    0%, 100% {
+      transform: rotate(-45deg);
+    }
+    50% {
+      transform: rotate(45deg);
+    }
+  }
+
+  /* Running motion lines */
+  @keyframes run-lines {
+    0% {
+      opacity: 0;
+      transform: translateX(0);
+    }
+    50% {
+      opacity: 1;
+      transform: translateX(-10px);
+    }
+    100% {
+      opacity: 0;
+      transform: translateX(-20px);
+    }
+  }
+
   /* Enhanced jumping animation with squash and stretch */
   @keyframes jump {
     0%, 100% {
@@ -66,32 +108,6 @@
     }
   }
 
-  /* Enhanced running animation with leg movement */
-  @keyframes run {
-    0%, 100% {
-      transform: translateX(-5px) rotate(-5deg) translateY(0);
-    }
-    25% {
-      transform: translateX(0) rotate(0deg) translateY(-2px);
-    }
-    50% {
-      transform: translateX(5px) rotate(5deg) translateY(0);
-    }
-    75% {
-      transform: translateX(0) rotate(0deg) translateY(-2px);
-    }
-  }
-
-  /* Running legs animation */
-  @keyframes run-legs {
-    0%, 100% {
-      transform: rotate(-45deg);
-    }
-    50% {
-      transform: rotate(45deg);
-    }
-  }
-
   /* Enhanced spinning animation */
   @keyframes spin {
     0% {
@@ -108,6 +124,22 @@
     }
     100% {
       transform: rotate(360deg) scale(1);
+    }
+  }
+
+  /* Spinning motion blur */
+  @keyframes spin-blur {
+    0% {
+      opacity: 0;
+      transform: rotate(0deg);
+    }
+    50% {
+      opacity: 0.3;
+      transform: rotate(180deg);
+    }
+    100% {
+      opacity: 0;
+      transform: rotate(360deg);
     }
   }
 
@@ -155,6 +187,19 @@
     }
   }
 
+  /* Ground shake effect */
+  @keyframes ground-shake {
+    0%, 100% {
+      transform: translateX(0);
+    }
+    25% {
+      transform: translateX(-2px);
+    }
+    75% {
+      transform: translateX(2px);
+    }
+  }
+
   /* Error shake animation */
   @keyframes shake {
     0%, 100% {
@@ -185,14 +230,6 @@
   }
 
   /* Apply animations */
-  .animate-jump {
-    animation: jump 1.2s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite;
-  }
-
-  .animate-jump-shadow {
-    animation: jump-shadow 1.2s ease-in-out infinite;
-  }
-
   .animate-run {
     animation: run 0.8s ease-in-out infinite;
   }
@@ -201,8 +238,24 @@
     animation: run-legs 0.4s ease-in-out infinite;
   }
 
+  .animate-run-lines {
+    animation: run-lines 0.4s ease-in-out infinite;
+  }
+
+  .animate-jump {
+    animation: jump 1.2s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite;
+  }
+
+  .animate-jump-shadow {
+    animation: jump-shadow 1.2s ease-in-out infinite;
+  }
+
   .animate-spin {
     animation: spin 2s ease-in-out infinite;
+  }
+
+  .animate-spin-blur {
+    animation: spin-blur 2s linear infinite;
   }
 
   .animate-stomp {
@@ -211,6 +264,10 @@
 
   .animate-stomp-feet {
     animation: stomp-feet 0.4s ease-in-out infinite;
+  }
+
+  .animate-ground-shake {
+    animation: ground-shake 0.4s ease-in-out infinite;
   }
 
   .animate-shake {
