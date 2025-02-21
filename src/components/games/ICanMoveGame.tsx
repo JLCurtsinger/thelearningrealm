@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Volume2, Star, Sparkles, Play, XCircle } from 'lucide-react';
+import { Volume2, Star, Sparkles, Play } from 'lucide-react';
 import { useGameAudio } from './GameAudioContext';
 
 interface ICanMoveGameProps {
@@ -9,25 +9,25 @@ interface ICanMoveGameProps {
   language: string;
 }
 
-// Movement actions with translations and animations
+// Movement actions with enhanced animations
 const actions = [
   {
     id: 'running',
-    animation: 'animate-[run_0.5s_ease-in-out_infinite]',
+    animation: 'animate-run',
     text: { en: 'running', es: 'corriendo' },
     prompt: { en: 'Who is running?', es: '¿Quién está corriendo?' },
     icon: '🏃'
   },
   {
     id: 'jumping',
-    animation: 'animate-bounce',
+    animation: 'animate-jump',
     text: { en: 'jumping', es: 'saltando' },
     prompt: { en: 'Who is jumping?', es: '¿Quién está saltando?' },
     icon: '🦘'
   },
   {
     id: 'spinning',
-    animation: 'animate-spin-slow',
+    animation: 'animate-spin',
     text: { en: 'spinning', es: 'girando' },
     prompt: { en: 'Who is spinning?', es: '¿Quién está girando?' },
     icon: '🌀'
@@ -57,37 +57,14 @@ export function ICanMoveGame({ isDarkMode, isVibrant, onExit, language }: ICanMo
     }
   }, [isStarted]);
 
-  useEffect(() => {
-    if (isStarted) {
-      generateNewRound();
-    }
-  }, [isStarted, currentAction]);
-
-  const generateNewRound = () => {
-    setIsTransitioning(true);
-    setShowActionLabel(false);
-    setSelectedCharacter(null);
-    setIsError(false);
-
-    // Speak the current action prompt
-    if (soundEnabled) {
-      const prompt = actions[currentAction].prompt[language as keyof typeof actions[0]['prompt']];
-      speakText(prompt, language === 'es' ? 'es-ES' : 'en-US');
-    }
-
-    setTimeout(() => {
-      setIsTransitioning(false);
-    }, 300);
-  };
-
-  const handleActionClick = (selectedAction: string, index: number) => {
+  const handleCharacterClick = (action: string, index: number) => {
     setSelectedCharacter(index);
 
-    if (selectedAction === actions[currentAction].id) {
+    if (action === actions[currentAction].id) {
       playGameSound('success');
       setIsCharacterAnimating(true);
       setShowActionLabel(true);
-
+      
       if (soundEnabled) {
         const celebration = language === 'es'
           ? '¡Excelente trabajo!'
@@ -103,7 +80,12 @@ export function ICanMoveGame({ isDarkMode, isVibrant, onExit, language }: ICanMo
         setShowCelebration(false);
         setShowActionLabel(false);
         if (currentAction < actions.length - 1) {
-          setCurrentAction(prev => prev + 1);
+          setIsTransitioning(true);
+          setTimeout(() => {
+            setCurrentAction(prev => prev + 1);
+            setSelectedCharacter(null);
+            setIsTransitioning(false);
+          }, 500);
         }
       }, 2000);
     } else {
@@ -124,9 +106,11 @@ export function ICanMoveGame({ isDarkMode, isVibrant, onExit, language }: ICanMo
     }
   };
 
-  // Animated character component
+  // Enhanced Character component with improved animations
   const Character = ({ action = '', onClick, index }: { action?: string; onClick?: () => void; index: number }) => {
     const actionData = actions.find(a => a.id === action) || actions[0];
+    const isCorrect = action === actions[currentAction].id;
+    const isSelected = selectedCharacter === index;
     
     return (
       <button
@@ -136,11 +120,11 @@ export function ICanMoveGame({ isDarkMode, isVibrant, onExit, language }: ICanMo
           relative w-48 h-48
           transform transition-all duration-300
           hover:scale-105 focus:outline-none
-          ${selectedCharacter === index && isError ? 'animate-[shake_0.5s_ease-in-out]' : ''}
-          ${action === actions[currentAction].id && isCharacterAnimating ? actionData.animation : ''}
+          ${isSelected && isError ? 'animate-shake' : ''}
           disabled:opacity-50
         `}
       >
+        {/* Character Body */}
         <div className={`
           absolute inset-0
           ${isVibrant
@@ -151,29 +135,58 @@ export function ICanMoveGame({ isDarkMode, isVibrant, onExit, language }: ICanMo
           }
           rounded-full
           shadow-lg
+          ${isCharacterAnimating && isCorrect ? actionData.animation : ''}
         `}>
-          {/* Character face */}
+          {/* Character Face */}
           <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
             <div className="flex space-x-4 mb-4">
-              <div className="w-4 h-4 rounded-full bg-white"></div>
-              <div className="w-4 h-4 rounded-full bg-white"></div>
+              <div className="w-6 h-6 rounded-full bg-white"></div>
+              <div className="w-6 h-6 rounded-full bg-white"></div>
             </div>
-            <div className="w-8 h-2 bg-white rounded-full"></div>
-
-            {/* Action Label */}
-            {action === actions[currentAction].id && showActionLabel && (
-              <div className={`
-                absolute -top-8 left-1/2 transform -translate-x-1/2
-                bg-black/50 backdrop-blur-sm
-                text-white text-center px-4 py-2 rounded-full
-                font-bold text-sm
-                transition-opacity duration-300
-              `}>
-                {actionData.text[language as keyof typeof actionData.text]}
-              </div>
-            )}
+            <div className="w-12 h-3 bg-white rounded-full"></div>
           </div>
+
+          {/* Running Legs */}
+          {action === 'running' && (
+            <div className="absolute -bottom-4 w-full">
+              <div className="relative h-8">
+                <div className="absolute w-6 h-12 bg-yellow-400 rounded-full left-1/3 animate-run-legs"></div>
+                <div className="absolute w-6 h-12 bg-yellow-400 rounded-full right-1/3 animate-run-legs" style={{ animationDelay: '0.2s' }}></div>
+              </div>
+            </div>
+          )}
+
+          {/* Jumping Shadow */}
+          {action === 'jumping' && (
+            <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 w-32">
+              <div className="h-2 bg-black/20 rounded-full animate-jump-shadow"></div>
+            </div>
+          )}
         </div>
+
+        {/* Action Label */}
+        {isCorrect && showActionLabel && (
+          <div className={`
+            absolute -top-8 left-1/2 transform -translate-x-1/2
+            bg-black/50 backdrop-blur-sm
+            text-white text-center px-4 py-2 rounded-full
+            font-bold text-lg
+            transition-opacity duration-300
+            flex items-center gap-2
+          `}>
+            <span>{actionData.icon}</span>
+            <span>{actionData.text[language as keyof typeof actionData.text]}</span>
+          </div>
+        )}
+
+        {/* Success Checkmark */}
+        {isCorrect && showActionLabel && (
+          <div className="absolute -top-2 -right-2 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+            <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+        )}
       </button>
     );
   };
@@ -190,7 +203,6 @@ export function ICanMoveGame({ isDarkMode, isVibrant, onExit, language }: ICanMo
                 px-4 py-2 rounded-full font-bold
                 ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}
                 shadow-lg
-                transition-opacity duration-300
               `}>
                 {language === 'es'
                   ? `Acción ${currentAction + 1} de ${actions.length}`
@@ -228,7 +240,7 @@ export function ICanMoveGame({ isDarkMode, isVibrant, onExit, language }: ICanMo
           shadow-xl
         `}>
           {!isStarted ? (
-            // Title Screen with enhanced fade-in
+            // Title Screen
             <div className={`
               flex flex-col items-center space-y-8
               animate-fade-in
@@ -296,7 +308,7 @@ export function ICanMoveGame({ isDarkMode, isVibrant, onExit, language }: ICanMo
                   <Character
                     key={index}
                     action={action.id}
-                    onClick={() => handleActionClick(action.id, index)}
+                    onClick={() => handleCharacterClick(action.id, index)}
                     index={index}
                   />
                 ))}
