@@ -30,38 +30,46 @@
 
   /* Enhanced jumping animation with squash and stretch */
   @keyframes jump {
-    0%, 100% {
-      transform: translateY(0) scale(1, 1);
+    0% {
+      transform: translateY(0) scale(1.1, 0.9); /* Initial squash */
     }
-    10% {
-      transform: translateY(0) scale(1.1, 0.9); /* Squash before jump */
-    }
-    30% {
-      transform: translateY(-30px) scale(0.9, 1.1); /* Stretch at peak */
+    20% {
+      transform: translateY(-40px) scale(0.9, 1.1); /* Stretch at takeoff */
     }
     50% {
-      transform: translateY(-30px) scale(0.9, 1.1); /* Hold at peak */
+      transform: translateY(-40px) scale(0.95, 1.05); /* Hold at peak with slight stretch */
     }
-    70% {
+    80% {
       transform: translateY(0) scale(1.1, 0.9); /* Squash on landing */
     }
-    85% {
-      transform: translateY(-10px) scale(0.95, 1.05); /* Small bounce */
+    90% {
+      transform: translateY(-10px) scale(1, 1); /* Small bounce */
+    }
+    100% {
+      transform: translateY(0) scale(1.1, 0.9); /* Return to squash for loop */
     }
   }
 
   /* Shadow animation for jumping */
   @keyframes jump-shadow {
-    0%, 100% {
-      transform: scaleX(1);
-      opacity: 0.2;
+    0% {
+      transform: scale(1.1);
+      opacity: 0.3;
     }
-    30%, 50% {
-      transform: scaleX(0.7);
+    20%, 50% {
+      transform: scale(0.7);
       opacity: 0.1;
     }
-    70% {
-      transform: scaleX(1.2);
+    80% {
+      transform: scale(1.1);
+      opacity: 0.3;
+    }
+    90% {
+      transform: scale(0.9);
+      opacity: 0.2;
+    }
+    100% {
+      transform: scale(1.1);
       opacity: 0.3;
     }
   }
@@ -186,11 +194,11 @@
 
   /* Apply animations */
   .animate-jump {
-    animation: jump 1.2s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite;
+    animation: jump 1s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite;
   }
 
   .animate-jump-shadow {
-    animation: jump-shadow 1.2s ease-in-out infinite;
+    animation: jump-shadow 1s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite;
   }
 
   .animate-run {

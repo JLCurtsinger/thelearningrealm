@@ -92,7 +92,6 @@ export function ICanJumpGame({ isDarkMode, isVibrant, onExit, language }: ICanJu
         transform transition-all duration-300
         hover:scale-105 focus:outline-none
         ${selectedCharacter === index && showError ? 'animate-[shake_0.5s_ease-in-out]' : ''}
-        ${isJumping && isCharacterAnimating ? 'animate-jump' : ''}
         disabled:opacity-50
       `}
     >
@@ -107,6 +106,7 @@ export function ICanJumpGame({ isDarkMode, isVibrant, onExit, language }: ICanJu
         }
         rounded-full
         shadow-lg
+        ${isJumping ? 'animate-jump' : ''}
       `}>
         {/* Character face */}
         <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
@@ -136,7 +136,7 @@ export function ICanJumpGame({ isDarkMode, isVibrant, onExit, language }: ICanJu
         <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 w-32">
           <div className={`
             h-2 bg-black/20 rounded-full
-            ${isCharacterAnimating ? 'animate-jump-shadow' : ''}
+            animate-jump-shadow
           `}></div>
         </div>
       )}
