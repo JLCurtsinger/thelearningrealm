@@ -82,7 +82,7 @@ export function ICanJumpGame({ isDarkMode, isVibrant, onExit, language }: ICanJu
     }
   };
 
-  // Animated character component with improved animations
+  // Animated character component with improved jumping animation
   const Character = ({ isJumping = false, onClick, index }: { isJumping?: boolean; onClick?: () => void; index: number }) => (
     <button
       onClick={onClick}
@@ -92,10 +92,11 @@ export function ICanJumpGame({ isDarkMode, isVibrant, onExit, language }: ICanJu
         transform transition-all duration-300
         hover:scale-105 focus:outline-none
         ${selectedCharacter === index && showError ? 'animate-[shake_0.5s_ease-in-out]' : ''}
-        ${isJumping && isCharacterAnimating ? 'animate-bounce' : ''}
+        ${isJumping && isCharacterAnimating ? 'animate-jump' : ''}
         disabled:opacity-50
       `}
     >
+      {/* Character Body */}
       <div className={`
         absolute inset-0
         ${isVibrant
@@ -129,6 +130,16 @@ export function ICanJumpGame({ isDarkMode, isVibrant, onExit, language }: ICanJu
           )}
         </div>
       </div>
+
+      {/* Shadow Effect */}
+      {isJumping && (
+        <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 w-32">
+          <div className={`
+            h-2 bg-black/20 rounded-full
+            ${isCharacterAnimating ? 'animate-jump-shadow' : ''}
+          `}></div>
+        </div>
+      )}
     </button>
   );
 
