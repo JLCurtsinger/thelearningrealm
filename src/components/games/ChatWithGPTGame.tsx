@@ -20,6 +20,10 @@ const animals = [
       en: ['kitty', 'kitten', 'cats', 'kittie'],
       es: ['gatito', 'gata', 'gatitos', 'gatos']
     },
+    alternativeSounds: {
+      en: ['meow', 'meows', 'mew', 'purr'],
+      es: ['miau', 'maullar', 'ronronear']
+    },
     responses: {
       correct: {
         en: "That's right! Can you meow like a cat?",
@@ -40,6 +44,10 @@ const animals = [
       en: ['puppy', 'doggy', 'dogs', 'pup'],
       es: ['perrito', 'perra', 'perritos', 'perros']
     },
+    alternativeSounds: {
+      en: ['woof', 'bark', 'ruff', 'arf', 'bow wow'],
+      es: ['guau', 'ladrar', 'guau guau']
+    },
     responses: {
       correct: {
         en: "Yes! Can you bark like a dog?",
@@ -59,6 +67,10 @@ const animals = [
     alternativeNames: {
       en: ['calf', 'cattle', 'cows', 'bovine'],
       es: ['vaquita', 'toro', 'vaquitas', 'vacas']
+    },
+    alternativeSounds: {
+      en: ['moo', 'moos', 'mooing'],
+      es: ['mu', 'mugir', 'mu mu']
     },
     responses: {
       correct: {
@@ -111,26 +123,34 @@ export function ChatWithGPTGame({ isDarkMode, isVibrant, onExit, language }: Cha
   };
 
   // Check if the answer is correct using fuzzy matching
-  const isAnswerCorrect = (input: string, animal: typeof animals[0]): boolean => {
+  const isAnswerCorrect = (input: string, animal: typeof animals[0], checkingSound: boolean = false): boolean => {
     const normalizedInput = input.toLowerCase().trim();
-    const mainName = animal.name[language as keyof typeof animal.name].toLowerCase();
-    const alternativeNames = animal.alternativeNames[language as keyof typeof animal.alternativeNames];
     
-    // Check exact matches first
-    if (normalizedInput === mainName) return true;
-    
-    // Check alternative names
-    if (alternativeNames.some(name => normalizedInput === name.toLowerCase())) return true;
-    
-    // Check for close matches (simple fuzzy matching)
-    const closeMatch = (a: string, b: string) => {
-      if (a.length < 3) return a === b;
-      if (Math.abs(a.length - b.length) > 2) return false;
-      return a.includes(b) || b.includes(a);
-    };
-    
-    return closeMatch(normalizedInput, mainName) ||
-           alternativeNames.some(name => closeMatch(normalizedInput, name.toLowerCase()));
+    if (checkingSound) {
+      // Check animal sounds
+      const alternativeSounds = animal.alternativeSounds[language as keyof typeof animal.alternativeSounds];
+      return alternativeSounds.some(sound => normalizedInput === sound.toLowerCase());
+    } else {
+      // Check animal names
+      const mainName = animal.name[language as keyof typeof animal.name].toLowerCase();
+      const alternativeNames = animal.alternativeNames[language as keyof typeof animal.alternativeNames];
+      
+      // Check exact matches first
+      if (normalizedInput === mainName) return true;
+      
+      // Check alternative names
+      if (alternativeNames.some(name => normalizedInput === name.toLowerCase())) return true;
+      
+      // Check for close matches (simple fuzzy matching)
+      const closeMatch = (a: string, b: string) => {
+        if (a.length < 3) return a === b;
+        if (Math.abs(a.length - b.length) > 2) return false;
+        return a.includes(b) || b.includes(a);
+      };
+      
+      return closeMatch(normalizedInput, mainName) ||
+             alternativeNames.some(name => closeMatch(normalizedInput, name.toLowerCase()));
+    }
   };
 
   const handleUserInput = () => {
@@ -190,8 +210,7 @@ export function ChatWithGPTGame({ isDarkMode, isVibrant, onExit, language }: Cha
           }, 500);
         }
       } else if (gameState === 'sound') {
-        const animalSound = animal.sound[language as keyof typeof animal.sound];
-        const isCorrect = inputValue.toLowerCase().includes(animalSound.toLowerCase());
+        const isCorrect = isAnswerCorrect(inputValue, animal, true);
 
         if (isCorrect) {
           playGameSound('success');
@@ -208,7 +227,6 @@ export function ChatWithGPTGame({ isDarkMode, isVibrant, onExit, language }: Cha
           
           setTimeout(() => {
             setIsAnimalAnimating(false);
-            inputRef.current?.classList.remove('animate-success-pulse');
             setShowCelebration(false);
             if (currentAnimal < animals.length - 1) {
               setIsTransitioning(true);
