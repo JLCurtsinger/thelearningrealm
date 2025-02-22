@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { Volume2, Star, Sparkles, Send } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Volume2, Star, Sparkles, Send, Home } from 'lucide-react';
 import { useGameAudio } from './GameAudioContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { updateProgressData, addCompletedLesson } from '../../utils/progressStorage';
 
 interface WhatAmIWearingGameProps {
   isDarkMode: boolean;
@@ -46,7 +48,10 @@ const clothing = [
   {
     id: 'shoes',
     image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=300&h=300',
-    name: { en: 'shoes', es: 'zapatos' },
+    name: { 
+      en: ['shoe', 'shoes'], // Accept both singular and plural
+      es: ['zapato', 'zapatos']
+    },
     color: { en: 'red', es: 'rojos' },
     responses: {
       nameCorrect: {
@@ -62,6 +67,7 @@ const clothing = [
 ];
 
 export function WhatAmIWearingGame({ isDarkMode, isVibrant, onExit, language }: WhatAmIWearingGameProps) {
+  const { user } = useAuth();
   const { soundEnabled, toggleSound, playGameSound, speakText } = useGameAudio();
   const [currentItem, setCurrentItem] = useState(0);
   const [gameState, setGameState] = useState<'name' | 'color' | 'celebration'>('name');
@@ -73,6 +79,15 @@ export function WhatAmIWearingGame({ isDarkMode, isVibrant, onExit, language }: 
   const [isItemAnimating, setIsItemAnimating] = useState(false);
   const [showItemLabel, setShowItemLabel] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [gameComplete, setGameComplete] = useState(false);
+  const [redirectTimer, setRedirectTimer] = useState<number | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   useEffect(() => {
     if (soundEnabled) {
@@ -83,6 +98,58 @@ export function WhatAmIWearingGame({ isDarkMode, isVibrant, onExit, language }: 
       speakText(initialPrompt, language === 'es' ? 'es-ES' : 'en-US');
     }
   }, []);
+
+  const scrollToBottom = () => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  // Handle game completion
+  const handleGameCompletion = async () => {
+    if (!user) return;
+
+    setGameComplete(true);
+    playGameSound('success');
+
+    try {
+      // Update reward points
+      await updateProgressData(user.uid, {
+        rewardPoints: score * 10 // 10 points per correct answer
+      });
+
+      // Mark lesson as completed
+      await addCompletedLesson(user.uid, 'whatamiwearing');
+
+      // Play victory sound and speech
+      if (soundEnabled) {
+        const victoryMessage = language === 'es'
+          ? '¡Felicitaciones! ¡Has completado el juego!'
+          : 'Congratulations! You have completed the game!';
+        setMessages(prev => [...prev, { text: victoryMessage, isUser: false }]);
+        speakText(victoryMessage, language === 'es' ? 'es-ES' : 'en-US');
+      }
+
+      // Start redirect countdown
+      let countdown = 5;
+      const timer = window.setInterval(() => {
+        countdown--;
+        setRedirectTimer(countdown);
+        
+        if (countdown <= 0) {
+          clearInterval(timer);
+          onExit(); // Redirect back to learning path
+        }
+      }, 1000);
+
+    } catch (error) {
+      console.error('Error updating progress:', error);
+      // Still exit after delay even if progress update fails
+      setTimeout(() => {
+        onExit();
+      }, 5000);
+    }
+  };
 
   const handleUserInput = () => {
     if (!userInput.trim()) return;
@@ -96,9 +163,14 @@ export function WhatAmIWearingGame({ isDarkMode, isVibrant, onExit, language }: 
 
     setTimeout(() => {
       if (gameState === 'name') {
-        const isCorrect = inputValue.toLowerCase().includes(
-          item.name[language as keyof typeof item.name].toLowerCase()
-        );
+        // Check if input matches any valid name for the item
+        const isCorrect = Array.isArray(item.name[language as keyof typeof item.name])
+          ? (item.name[language as keyof typeof item.name] as string[]).some(
+              name => inputValue.toLowerCase().includes(name.toLowerCase())
+            )
+          : inputValue.toLowerCase().includes(
+              (item.name[language as keyof typeof item.name] as string).toLowerCase()
+            );
 
         if (isCorrect) {
           playGameSound('success');
@@ -157,11 +229,7 @@ export function WhatAmIWearingGame({ isDarkMode, isVibrant, onExit, language }: 
                 setIsTransitioning(false);
               }, 500);
             } else {
-              const finalMessage = language === 'es'
-                ? "¡Felicitaciones! ¡Has completado el juego!"
-                : "Congratulations! You've completed the game!";
-              setMessages(prev => [...prev, { text: finalMessage, isUser: false }]);
-              speakText(finalMessage, language === 'es' ? 'es-ES' : 'en-US');
+              handleGameCompletion();
             }
           }, 2000);
         } else {
@@ -245,7 +313,9 @@ export function WhatAmIWearingGame({ isDarkMode, isVibrant, onExit, language }: 
                   transform transition-all duration-300
                   ${showItemLabel ? 'translate-y-0' : 'translate-y-full'}
                 `}>
-                  {clothing[currentItem].name[language as keyof typeof clothing[0]['name']]}
+                  {Array.isArray(clothing[currentItem].name[language as keyof typeof clothing[0]['name']])
+                    ? (clothing[currentItem].name[language as keyof typeof clothing[0]['name']] as string[])[0]
+                    : clothing[currentItem].name[language as keyof typeof clothing[0]['name']] as string}
                 </div>
               )}
             </div>
@@ -277,11 +347,13 @@ export function WhatAmIWearingGame({ isDarkMode, isVibrant, onExit, language }: 
                 </div>
               </div>
             ))}
+            <div ref={messagesEndRef} /> {/* Scroll anchor */}
           </div>
 
           {/* Input Area */}
           <div className="flex gap-4">
             <input
+              ref={inputRef}
               type="text"
               value={userInput}
               onChange={(e) => setUserInput(e.target.value)}
@@ -320,21 +392,67 @@ export function WhatAmIWearingGame({ isDarkMode, isVibrant, onExit, language }: 
           </div>
 
           {/* Celebration Overlay */}
-          {showCelebration && (
+          {(showCelebration || gameComplete) && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-3xl">
               <div className="text-center">
                 <h3 className="text-4xl font-bold text-white mb-4">
-                  {language === 'es' ? '¡Excelente! 🎉' : 'Great Job! 🎉'}
+                  {gameComplete
+                    ? language === 'es'
+                      ? '¡Felicitaciones! 🎉\n¡Has completado el juego!'
+                      : 'Congratulations! 🎉\nYou completed the game!'
+                    : language === 'es'
+                      ? '¡Excelente! 🎉'
+                      : 'Great Job! 🎉'
+                  }
                 </h3>
                 <div className="flex justify-center space-x-4">
-                  {Array.from({ length: 3 }).map((_, i) => (
+                  {Array.from({ length: gameComplete ? 6 : 3 }).map((_, i) => (
                     <Sparkles
                       key={i}
-                      className="w-12 h-12 text-yellow-400 animate-spin"
-                      style={{ animationDelay: `${i * 0.2}s` }}
+                      className={`
+                        w-12 h-12 text-yellow-400
+                        ${gameComplete ? 'animate-float' : 'animate-spin'}
+                      `}
+                      style={{
+                        animationDelay: `${i * 0.2}s`,
+                        transform: gameComplete
+                          ? `rotate(${i * 60}deg) translateY(${Math.sin(i) * 20}px)`
+                          : 'none'
+                      }}
                     />
                   ))}
                 </div>
+                {gameComplete && (
+                  <>
+                    <p className="text-white text-xl mt-4">
+                      {language === 'es'
+                        ? `¡Ganaste ${score * 10} puntos!`
+                        : `You earned ${score * 10} points!`}
+                    </p>
+                    {redirectTimer !== null && (
+                      <p className="text-white text-lg mt-2">
+                        {language === 'es'
+                          ? `Volviendo al menú en ${redirectTimer}...`
+                          : `Returning to menu in ${redirectTimer}...`}
+                      </p>
+                    )}
+                    <button
+                      onClick={onExit}
+                      className={`
+                        mt-6 px-6 py-3 rounded-xl
+                        flex items-center gap-2 mx-auto
+                        font-bold text-white
+                        transform hover:scale-105
+                        transition-all duration-300
+                        ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100 text-gray-900'}
+                        shadow-lg
+                      `}
+                    >
+                      <Home className="w-5 h-5" />
+                      <span>{language === 'es' ? 'Volver al Menú' : 'Return to Menu'}</span>
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           )}

@@ -74,6 +74,25 @@
     }
   }
 
+  /* Enhanced waving animation */
+  @keyframes wave {
+    0% {
+      transform: rotate(0deg);
+    }
+    25% {
+      transform: rotate(20deg);
+    }
+    50% {
+      transform: rotate(0deg);
+    }
+    75% {
+      transform: rotate(-15deg);
+    }
+    100% {
+      transform: rotate(0deg);
+    }
+  }
+
   /* Enhanced running animation with leg movement */
   @keyframes run {
     0%, 100% {
@@ -199,6 +218,11 @@
 
   .animate-jump-shadow {
     animation: jump-shadow 1s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite;
+  }
+
+  .animate-wave {
+    animation: wave 1.5s ease-in-out infinite;
+    transform-origin: 70% 50%; /* Adjust origin for more natural arm movement */
   }
 
   .animate-run {

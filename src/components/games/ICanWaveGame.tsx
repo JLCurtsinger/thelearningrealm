@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Volume2, Star, Sparkles, Play, XCircle } from 'lucide-react';
+import { Volume2, Star, Sparkles, Play, Home } from 'lucide-react';
 import { useGameAudio } from './GameAudioContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { updateProgressData, addCompletedLesson } from '../../utils/progressStorage';
 
 interface ICanWaveGameProps {
   isDarkMode: boolean;
@@ -9,41 +11,21 @@ interface ICanWaveGameProps {
   language: string;
 }
 
-// Different waving animations
-const WAVE_STYLES = [
-  {
-    id: 'friendly',
-    armStyle: 'w-8 h-2 bg-yellow-400 rounded-full',
-    animation: 'animate-wave origin-left',
-    position: '-right-4 top-1/2'
-  },
-  {
-    id: 'excited',
-    armStyle: 'w-10 h-2 bg-yellow-400 rounded-full',
-    animation: 'animate-[wave_1s_ease-in-out_infinite]',
-    position: '-right-6 top-1/3'
-  },
-  {
-    id: 'gentle',
-    armStyle: 'w-6 h-2 bg-yellow-400 rounded-full',
-    animation: 'animate-[wave_1.5s_ease-in-out_infinite]',
-    position: '-right-4 top-2/3'
-  }
-];
-
 export function ICanWaveGame({ isDarkMode, isVibrant, onExit, language }: ICanWaveGameProps) {
+  const { user } = useAuth();
   const { soundEnabled, toggleSound, playGameSound, speakText } = useGameAudio();
   const [isStarted, setIsStarted] = useState(false);
   const [score, setScore] = useState(0);
   const [showCelebration, setShowCelebration] = useState(false);
   const [showError, setShowError] = useState(false);
-  const [currentWaveStyle, setCurrentWaveStyle] = useState(0);
   const [round, setRound] = useState(1);
   const [totalRounds] = useState(5);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [selectedCharacter, setSelectedCharacter] = useState<number | null>(null);
   const [isCharacterAnimating, setIsCharacterAnimating] = useState(false);
   const [showActionLabel, setShowActionLabel] = useState(false);
+  const [gameComplete, setGameComplete] = useState(false);
+  const [redirectTimer, setRedirectTimer] = useState<number | null>(null);
 
   useEffect(() => {
     if (soundEnabled && !isStarted) {
@@ -56,7 +38,53 @@ export function ICanWaveGame({ isDarkMode, isVibrant, onExit, language }: ICanWa
     }
   }, [isStarted]);
 
+  // Handle game completion
+  const handleGameCompletion = async () => {
+    if (!user) return;
+
+    setGameComplete(true);
+    playGameSound('success');
+
+    try {
+      // Update reward points
+      await updateProgressData(user.uid, {
+        rewardPoints: score * 10 // 10 points per correct wave
+      });
+
+      // Mark lesson as completed
+      await addCompletedLesson(user.uid, 'icanwave');
+
+      // Play victory sound and speech
+      if (soundEnabled) {
+        const victoryMessage = language === 'es'
+          ? '¡Felicitaciones! ¡Has completado el juego!'
+          : 'Congratulations! You have completed the game!';
+        speakText(victoryMessage, language === 'es' ? 'es-ES' : 'en-US');
+      }
+
+      // Start redirect countdown
+      let countdown = 5;
+      const timer = window.setInterval(() => {
+        countdown--;
+        setRedirectTimer(countdown);
+        
+        if (countdown <= 0) {
+          clearInterval(timer);
+          onExit(); // Redirect back to learning path
+        }
+      }, 1000);
+
+    } catch (error) {
+      console.error('Error updating progress:', error);
+      // Still exit after delay even if progress update fails
+      setTimeout(() => {
+        onExit();
+      }, 5000);
+    }
+  };
+
   const handleCharacterClick = (isWaving: boolean, index: number) => {
+    if (gameComplete) return;
     setSelectedCharacter(index);
 
     if (isWaving) {
@@ -82,10 +110,11 @@ export function ICanWaveGame({ isDarkMode, isVibrant, onExit, language }: ICanWa
           setIsTransitioning(true);
           setTimeout(() => {
             setRound(prev => prev + 1);
-            setCurrentWaveStyle((prev) => (prev + 1) % WAVE_STYLES.length);
             setSelectedCharacter(null);
             setIsTransitioning(false);
           }, 300);
+        } else {
+          handleGameCompletion();
         }
       }, 2000);
     } else {
@@ -94,8 +123,8 @@ export function ICanWaveGame({ isDarkMode, isVibrant, onExit, language }: ICanWa
       
       if (soundEnabled) {
         const tryAgain = language === 'es' 
-          ? '¡Inténtalo de nuevo!' 
-          : 'Try again!';
+          ? 'Inténtalo de nuevo' 
+          : 'Try again';
         speakText(tryAgain, language === 'es' ? 'es-ES' : 'en-US');
       }
 
@@ -106,69 +135,66 @@ export function ICanWaveGame({ isDarkMode, isVibrant, onExit, language }: ICanWa
     }
   };
 
-  // Animated character component
-  const Character = ({ isWaving = false, onClick, index }: { isWaving?: boolean; onClick?: () => void; index: number }) => {
-    const waveStyle = WAVE_STYLES[currentWaveStyle];
-    
-    return (
-      <button
-        onClick={onClick}
-        disabled={showCelebration}
-        className={`
-          relative w-48 h-48
-          transform transition-all duration-300
-          hover:scale-105 focus:outline-none
-          ${selectedCharacter === index && showError ? 'animate-[shake_0.5s_ease-in-out]' : ''}
-          ${isWaving && isCharacterAnimating ? 'animate-bounce' : ''}
-          disabled:opacity-50
-        `}
-      >
-        <div className={`
-          absolute inset-0
-          ${isVibrant
-            ? 'bg-gradient-to-b from-purple-500 to-pink-500'
-            : isDarkMode
-              ? 'bg-gray-700'
-              : 'bg-purple-600'
-          }
-          rounded-full
-          shadow-lg
-        `}>
-          {/* Character face */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
-            <div className="flex space-x-4 mb-4">
-              <div className="w-4 h-4 rounded-full bg-white"></div>
-              <div className="w-4 h-4 rounded-full bg-white"></div>
-            </div>
-            <div className="w-8 h-2 bg-white rounded-full"></div>
-
-            {/* Waving arm with dynamic style */}
-            {isWaving && (
-              <div className={`absolute ${waveStyle.position}`}>
-                <div className={`
-                  ${waveStyle.armStyle}
-                  ${waveStyle.animation}
-                `} />
-              </div>
-            )}
-
-            {/* Action Label */}
-            {isWaving && showActionLabel && (
-              <div className={`
-                absolute -top-8 left-1/2 transform -translate-x-1/2
-                bg-black/50 backdrop-blur-sm
-                text-white text-center px-4 py-2 rounded-full
-                font-bold text-sm
-                transition-opacity duration-300
-              `}>
-                {language === 'es' ? '¡Saludando!' : 'Waving!'}
-              </div>
-            )}
+  // Animated character component with improved waving animation
+  const Character = ({ isWaving = false, onClick, index }: { isWaving?: boolean; onClick?: () => void; index: number }) => (
+    <button
+      onClick={onClick}
+      disabled={showCelebration || gameComplete}
+      className={`
+        relative w-48 h-48
+        transform transition-all duration-300
+        hover:scale-105 focus:outline-none
+        ${selectedCharacter === index && showError ? 'animate-[shake_0.5s_ease-in-out]' : ''}
+        disabled:opacity-50
+      `}
+    >
+      {/* Character Body */}
+      <div className={`
+        absolute inset-0
+        ${isVibrant
+          ? 'bg-gradient-to-b from-purple-500 to-pink-500'
+          : isDarkMode
+            ? 'bg-gray-700'
+            : 'bg-purple-600'
+        }
+        rounded-full
+        shadow-lg
+      `}>
+        {/* Character face */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
+          <div className="flex space-x-4 mb-4">
+            <div className="w-4 h-4 rounded-full bg-white"></div>
+            <div className="w-4 h-4 rounded-full bg-white"></div>
           </div>
+          <div className="w-8 h-2 bg-white rounded-full"></div>
         </div>
-      </button>
-    );
-  };
+
+        {/* Waving Arm */}
+        {isWaving && (
+          <div className="absolute -right-4 top-1/2 -translate-y-1/2">
+            <div className={`
+              w-8 h-2 bg-yellow-400 rounded-full
+              origin-left
+              ${isCharacterAnimating ? 'animate-wave' : ''}
+            `} />
+          </div>
+        )}
+
+        {/* Action Label */}
+        {isWaving && showActionLabel && (
+          <div className={`
+            absolute -top-8 left-1/2 transform -translate-x-1/2
+            bg-black/50 backdrop-blur-sm
+            text-white text-center px-4 py-2 rounded-full
+            font-bold text-sm
+            transition-opacity duration-300
+          `}>
+            {language === 'es' ? '¡Saludando!' : 'Waving!'}
+          </div>
+        )}
+      </div>
+    </button>
+  );
 
   return (
     <div className="min-h-screen pt-20 pb-8 px-4">
@@ -220,7 +246,7 @@ export function ICanWaveGame({ isDarkMode, isVibrant, onExit, language }: ICanWa
           shadow-xl
         `}>
           {!isStarted ? (
-            // Title Screen with enhanced fade-in
+            // Title Screen
             <div className={`
               flex flex-col items-center space-y-8
               animate-fade-in
@@ -260,7 +286,6 @@ export function ICanWaveGame({ isDarkMode, isVibrant, onExit, language }: ICanWa
               </button>
             </div>
           ) : (
-            // Game Screen
             <>
               <h2 className={`
                 text-2xl font-bold text-center mb-12 font-comic
@@ -289,21 +314,67 @@ export function ICanWaveGame({ isDarkMode, isVibrant, onExit, language }: ICanWa
           )}
 
           {/* Celebration Overlay */}
-          {showCelebration && (
+          {(showCelebration || gameComplete) && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-3xl">
               <div className="text-center">
                 <h3 className="text-4xl font-bold text-white mb-4">
-                  {language === 'es' ? '¡Excelente! 🎉' : 'Great Job! 🎉'}
+                  {gameComplete
+                    ? language === 'es'
+                      ? '¡Felicitaciones! 🎉\n¡Has completado el juego!'
+                      : 'Congratulations! 🎉\nYou completed the game!'
+                    : language === 'es'
+                      ? '¡Excelente! 🎉'
+                      : 'Great Job! 🎉'
+                  }
                 </h3>
                 <div className="flex justify-center space-x-4">
-                  {Array.from({ length: 3 }).map((_, i) => (
+                  {Array.from({ length: gameComplete ? 6 : 3 }).map((_, i) => (
                     <Sparkles
                       key={i}
-                      className="w-12 h-12 text-yellow-400 animate-spin"
-                      style={{ animationDelay: `${i * 0.2}s` }}
+                      className={`
+                        w-12 h-12 text-yellow-400
+                        ${gameComplete ? 'animate-float' : 'animate-spin'}
+                      `}
+                      style={{
+                        animationDelay: `${i * 0.2}s`,
+                        transform: gameComplete
+                          ? `rotate(${i * 60}deg) translateY(${Math.sin(i) * 20}px)`
+                          : 'none'
+                      }}
                     />
                   ))}
                 </div>
+                {gameComplete && (
+                  <>
+                    <p className="text-white text-xl mt-4">
+                      {language === 'es'
+                        ? `¡Ganaste ${score * 10} puntos!`
+                        : `You earned ${score * 10} points!`}
+                    </p>
+                    {redirectTimer !== null && (
+                      <p className="text-white text-lg mt-2">
+                        {language === 'es'
+                          ? `Volviendo al menú en ${redirectTimer}...`
+                          : `Returning to menu in ${redirectTimer}...`}
+                      </p>
+                    )}
+                    <button
+                      onClick={onExit}
+                      className={`
+                        mt-6 px-6 py-3 rounded-xl
+                        flex items-center gap-2 mx-auto
+                        font-bold text-white
+                        transform hover:scale-105
+                        transition-all duration-300
+                        ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100 text-gray-900'}
+                        shadow-lg
+                      `}
+                    >
+                      <Home className="w-5 h-5" />
+                      <span>{language === 'es' ? 'Volver al Menú' : 'Return to Menu'}</span>
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           )}
