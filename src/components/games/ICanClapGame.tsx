@@ -82,7 +82,7 @@ export function ICanClapGame({ isDarkMode, isVibrant, onExit, language }: ICanCl
       playGameSound('success');
       setIsCharacterAnimating(true);
       setShowActionLabel(true);
-
+      
       if (soundEnabled) {
         const celebration = language === 'es' 
           ? '¡Excelente trabajo!' 
@@ -96,7 +96,6 @@ export function ICanClapGame({ isDarkMode, isVibrant, onExit, language }: ICanCl
       setTimeout(() => {
         setIsCharacterAnimating(false);
         setShowCelebration(false);
-        setShowActionLabel(false);
         if (round < totalRounds) {
           setIsTransitioning(true);
           setTimeout(() => {
@@ -126,7 +125,7 @@ export function ICanClapGame({ isDarkMode, isVibrant, onExit, language }: ICanCl
     }
   };
 
-  // Animated character component with improved design
+  // Enhanced Character component with improved animations and design
   const Character = ({ isClapping = false, onClick, index }: { isClapping?: boolean; onClick?: () => void; index: number }) => (
     <button
       onClick={onClick}
@@ -136,7 +135,6 @@ export function ICanClapGame({ isDarkMode, isVibrant, onExit, language }: ICanCl
         transform transition-all duration-300
         hover:scale-105 focus:outline-none
         ${selectedCharacter === index && showError ? 'animate-[shake_0.5s_ease-in-out]' : ''}
-        ${isClapping && isCharacterAnimating ? 'animate-bounce' : ''}
         disabled:opacity-50
       `}
     >
@@ -153,54 +151,70 @@ export function ICanClapGame({ isDarkMode, isVibrant, onExit, language }: ICanCl
         shadow-lg
       `}>
         {/* Character Face */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          {/* Eyes */}
-          <div className="flex space-x-4 mb-2">
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
+          {/* Eyes - More expressive based on state */}
+          <div className="flex space-x-4 mb-4">
             <div className={`
-              w-4 h-4 rounded-full bg-white
+              w-6 h-6 rounded-full bg-white
               ${isClapping && isCharacterAnimating ? 'scale-75' : ''}
               transition-transform duration-200
-            `} />
+            `}>
+              <div className="w-3 h-3 bg-black rounded-full mt-1 ml-1" />
+            </div>
             <div className={`
-              w-4 h-4 rounded-full bg-white
+              w-6 h-6 rounded-full bg-white
               ${isClapping && isCharacterAnimating ? 'scale-75' : ''}
               transition-transform duration-200
-            `} />
+            `}>
+              <div className="w-3 h-3 bg-black rounded-full mt-1 ml-1" />
+            </div>
           </div>
           {/* Mouth - Smiles when clapping */}
           <div className={`
-            w-8 h-4 bg-white rounded-full
+            w-12 h-6 bg-white rounded-full overflow-hidden
             ${isClapping && isCharacterAnimating ? 'scale-x-110 scale-y-75' : ''}
             transition-transform duration-200
-          `} />
+            relative
+          `}>
+            {isClapping && (
+              <div className="absolute inset-0 bg-pink-200 opacity-50" />
+            )}
+          </div>
         </div>
 
-        {/* Arms */}
-        <div className="absolute -left-8 top-1/2 -translate-y-1/2">
-          {isClapping ? (
-            <>
-              {/* Clapping Hands Animation */}
-              <div className="relative">
-                <div className={`
-                  absolute w-8 h-8 bg-yellow-400 rounded-full
-                  ${isCharacterAnimating ? 'animate-[clap_0.5s_ease-in-out_infinite]' : ''}
-                  origin-right
-                `} />
-                <div className={`
-                  absolute w-8 h-8 bg-yellow-400 rounded-full left-8
-                  ${isCharacterAnimating ? 'animate-[clap_0.5s_ease-in-out_infinite_reverse]' : ''}
-                  origin-left
-                `} />
-              </div>
-            </>
-          ) : (
-            // Static Arms
-            <div className="w-8 h-16 bg-yellow-400 rounded-full" />
-          )}
-        </div>
-        <div className="absolute -right-8 top-1/2 -translate-y-1/2">
-          <div className="w-8 h-16 bg-yellow-400 rounded-full" />
-        </div>
+        {/* Clapping Hands */}
+        {isClapping && (
+          <div className="absolute -left-8 top-1/2 -translate-y-1/2">
+            <div className="relative">
+              {/* Left Hand */}
+              <div className={`
+                absolute w-8 h-8 bg-yellow-400 rounded-full
+                ${isCharacterAnimating ? 'animate-[clap_0.5s_ease-in-out_infinite]' : ''}
+                origin-right
+              `} />
+              {/* Right Hand */}
+              <div className={`
+                absolute w-8 h-8 bg-yellow-400 rounded-full left-8
+                ${isCharacterAnimating ? 'animate-[clap_0.5s_ease-in-out_infinite_reverse]' : ''}
+                origin-left
+              `} />
+              {/* Clap Effect */}
+              {isCharacterAnimating && (
+                <div className="absolute left-4 -top-4">
+                  <Sparkles className="w-6 h-6 text-yellow-200 animate-spin" />
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Static Arms for Non-Clapping Character */}
+        {!isClapping && (
+          <>
+            <div className="absolute -left-8 top-1/2 -translate-y-1/2 w-8 h-16 bg-yellow-400 rounded-full" />
+            <div className="absolute -right-8 top-1/2 -translate-y-1/2 w-8 h-16 bg-yellow-400 rounded-full" />
+          </>
+        )}
 
         {/* Action Label */}
         {isClapping && showActionLabel && (
