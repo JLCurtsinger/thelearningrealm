@@ -28,231 +28,69 @@
     animation-delay: 4s;
   }
 
-  /* Enhanced jumping animation with squash and stretch */
-  @keyframes jump {
+  /* Enhanced floating animation */
+  @keyframes float {
     0% {
-      transform: translateY(0) scale(1.1, 0.9); /* Initial squash */
-    }
-    20% {
-      transform: translateY(-40px) scale(0.9, 1.1); /* Stretch at takeoff */
-    }
-    50% {
-      transform: translateY(-40px) scale(0.95, 1.05); /* Hold at peak with slight stretch */
-    }
-    80% {
-      transform: translateY(0) scale(1.1, 0.9); /* Squash on landing */
-    }
-    90% {
-      transform: translateY(-10px) scale(1, 1); /* Small bounce */
-    }
-    100% {
-      transform: translateY(0) scale(1.1, 0.9); /* Return to squash for loop */
-    }
-  }
-
-  /* Shadow animation for jumping */
-  @keyframes jump-shadow {
-    0% {
-      transform: scale(1.1);
-      opacity: 0.3;
-    }
-    20%, 50% {
-      transform: scale(0.7);
-      opacity: 0.1;
-    }
-    80% {
-      transform: scale(1.1);
-      opacity: 0.3;
-    }
-    90% {
-      transform: scale(0.9);
-      opacity: 0.2;
-    }
-    100% {
-      transform: scale(1.1);
-      opacity: 0.3;
-    }
-  }
-
-  /* Enhanced waving animation */
-  @keyframes wave {
-    0% {
-      transform: rotate(0deg);
+      transform: translateY(0) translateX(0);
     }
     25% {
-      transform: rotate(20deg);
+      transform: translateY(-10px) translateX(5px);
     }
     50% {
-      transform: rotate(0deg);
+      transform: translateY(0) translateX(10px);
     }
     75% {
-      transform: rotate(-15deg);
+      transform: translateY(10px) translateX(5px);
     }
     100% {
-      transform: rotate(0deg);
+      transform: translateY(0) translateX(0);
     }
   }
 
-  /* Enhanced running animation with leg movement */
-  @keyframes run {
-    0% {
-      transform: translateX(-5px) rotate(-5deg) translateY(0);
-    }
-    25% {
-      transform: translateX(0) rotate(0deg) translateY(-2px);
-    }
-    50% {
-      transform: translateX(5px) rotate(5deg) translateY(0);
-    }
-    75% {
-      transform: translateX(0) rotate(0deg) translateY(-2px);
-    }
-    100% {
-      transform: translateX(-5px) rotate(-5deg) translateY(0);
-    }
-  }
-
-  /* Running legs animation */
-  @keyframes run-legs {
+  /* Enhanced twinkling animation */
+  @keyframes twinkle {
     0%, 100% {
-      transform: rotate(-45deg);
-    }
-    50% {
-      transform: rotate(45deg);
-    }
-  }
-
-  /* Enhanced spinning animation */
-  @keyframes spin-character {
-    0% {
-      transform: rotate(0deg) scale(1);
-    }
-    25% {
-      transform: rotate(90deg) scale(1.1);
-    }
-    50% {
-      transform: rotate(180deg) scale(1);
-    }
-    75% {
-      transform: rotate(270deg) scale(1.1);
-    }
-    100% {
-      transform: rotate(360deg) scale(1);
-    }
-  }
-
-  /* Enhanced stomping animation */
-  @keyframes stomp {
-    0%, 100% {
-      transform: translateY(0) scale(1, 1);
-    }
-    10% {
-      transform: translateY(-10px) scale(0.95, 1.05);
-    }
-    30% {
-      transform: translateY(5px) scale(1.1, 0.9);
-    }
-    40% {
-      transform: translateY(0) scale(1);
-    }
-    45% {
-      transform: translate(-2px, 0);
-    }
-    50% {
-      transform: translate(2px, 0);
-    }
-    55% {
-      transform: translate(-2px, 0);
-    }
-    60% {
-      transform: translate(2px, 0);
-    }
-  }
-
-  /* Stomping feet animation */
-  @keyframes stomp-feet {
-    0%, 100% {
-      transform: translateY(0);
-    }
-    25% {
-      transform: translateY(-8px);
-    }
-    50% {
-      transform: translateY(4px);
-    }
-    75% {
-      transform: translateY(-4px);
-    }
-  }
-
-  /* Error shake animation */
-  @keyframes shake {
-    0%, 100% {
-      transform: translateX(0);
-    }
-    25% {
-      transform: translateX(-10px);
-    }
-    75% {
-      transform: translateX(10px);
-    }
-  }
-
-  /* Success pulse animation */
-  @keyframes success-pulse {
-    0% {
       transform: scale(1);
-      box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+      opacity: 1;
     }
     50% {
-      transform: scale(1.05);
-      box-shadow: 0 0 0 10px rgba(34, 197, 94, 0);
+      transform: scale(0.5);
+      opacity: 0.3;
+    }
+  }
+
+  /* Ripple effect animation */
+  @keyframes ripple {
+    0% {
+      transform: translate(-50%, -50%) scale(0);
+      opacity: 1;
     }
     100% {
-      transform: scale(1);
-      box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+      transform: translate(-50%, -50%) scale(50);
+      opacity: 0;
+    }
+  }
+
+  /* Slow spin animation */
+  @keyframes spin-slow {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
     }
   }
 
   /* Apply animations */
-  .animate-jump {
-    animation: jump 1s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite;
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
   }
 
-  .animate-jump-shadow {
-    animation: jump-shadow 1s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite;
+  .animate-twinkle {
+    animation: twinkle 2s ease-in-out infinite;
   }
 
-  .animate-wave {
-    animation: wave 1.5s ease-in-out infinite;
-    transform-origin: 70% 50%; /* Adjust origin for more natural arm movement */
-  }
-
-  .animate-run {
-    animation: run 0.8s ease-in-out infinite;
-  }
-
-  .animate-run-legs {
-    animation: run-legs 0.4s ease-in-out infinite;
-  }
-
-  .animate-spin-character {
-    animation: spin-character 2s ease-in-out infinite;
-  }
-
-  .animate-stomp {
-    animation: stomp 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite;
-  }
-
-  .animate-stomp-feet {
-    animation: stomp-feet 0.4s ease-in-out infinite;
-  }
-
-  .animate-shake {
-    animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
-  }
-
-  .animate-success-pulse {
-    animation: success-pulse 1s ease-in-out;
+  .animate-spin-slow {
+    animation: spin-slow 8s linear infinite;
   }
 }

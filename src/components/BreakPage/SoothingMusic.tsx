@@ -8,7 +8,7 @@ interface SoothingMusicProps {
   t: any;
 }
 
-// Audio tracks configuration with preload
+// Audio tracks configuration with more reliable sources
 const audioTracks = [
   {
     name: 'Ocean Waves',
@@ -31,12 +31,29 @@ export function SoothingMusic({ isDarkMode, isVibrant, t }: SoothingMusicProps) 
   const [volume, setVolume] = useState(0.5);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Refs for audio elements and context
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const gainNodeRef = useRef<GainNode | null>(null);
+  const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
 
-  // Initialize audio element
+  // Initialize audio context and elements
   useEffect(() => {
+    // Create audio context
+    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+    audioContextRef.current = new AudioContext();
+
+    // Create gain node
+    const gainNode = audioContextRef.current.createGain();
+    gainNode.gain.value = volume;
+    gainNode.connect(audioContextRef.current.destination);
+    gainNodeRef.current = gainNode;
+
+    // Create audio element
     const audio = new Audio();
-    audio.volume = volume;
+    audio.crossOrigin = "anonymous";
+    audio.preload = "auto";
     
     // Set up event listeners
     audio.addEventListener('canplaythrough', () => {
@@ -52,23 +69,40 @@ export function SoothingMusic({ isDarkMode, isVibrant, t }: SoothingMusicProps) 
 
     audio.addEventListener('error', (e) => {
       console.error('Audio error:', e);
-      handlePlayError(new Error('Failed to load audio'));
+      handlePlayError(new Error('Failed to load audio track'));
     });
 
+    // Create and connect source node
+    const source = audioContextRef.current.createMediaElementSource(audio);
+    source.connect(gainNode);
+    sourceNodeRef.current = source;
     audioRef.current = audio;
 
     // Cleanup
     return () => {
-      audio.pause();
-      audio.src = '';
-      audio.remove();
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = '';
+        audioRef.current.removeEventListener('canplaythrough', () => {});
+        audioRef.current.removeEventListener('ended', () => {});
+        audioRef.current.removeEventListener('error', () => {});
+      }
+      if (sourceNodeRef.current) {
+        sourceNodeRef.current.disconnect();
+      }
+      if (gainNodeRef.current) {
+        gainNodeRef.current.disconnect();
+      }
+      if (audioContextRef.current?.state !== 'closed') {
+        audioContextRef.current?.close();
+      }
     };
   }, []);
 
   // Update volume
   useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.volume = volume;
+    if (gainNodeRef.current) {
+      gainNodeRef.current.gain.value = volume;
     }
   }, [volume]);
 
@@ -83,13 +117,16 @@ export function SoothingMusic({ isDarkMode, isVibrant, t }: SoothingMusicProps) 
     console.error('Playback error:', error);
     setIsPlaying(false);
     setIsLoading(false);
-    setError('Unable to play audio. Please try again.');
+    setError('Unable to play audio. Please try again or select another track.');
 
     // Clear error after 3 seconds
     setTimeout(() => setError(null), 3000);
+
+    // Try next track
+    setCurrentTrack((prev) => (prev + 1) % audioTracks.length);
   };
 
-  const loadTrack = async () => {
+  const loadTrack = () => {
     if (!audioRef.current) return;
 
     try {
@@ -99,16 +136,12 @@ export function SoothingMusic({ isDarkMode, isVibrant, t }: SoothingMusicProps) 
       // Set new source
       audioRef.current.src = audioTracks[currentTrack].url;
       
-      // Load the audio
-      await audioRef.current.load();
+      // Load the track
+      audioRef.current.load();
       
       // If we were playing, continue playing the new track
       if (isPlaying) {
-        try {
-          await audioRef.current.play();
-        } catch (error) {
-          handlePlayError(error as Error);
-        }
+        audioRef.current.play().catch(handlePlayError);
       }
     } catch (error) {
       handlePlayError(error as Error);
@@ -116,7 +149,7 @@ export function SoothingMusic({ isDarkMode, isVibrant, t }: SoothingMusicProps) 
   };
 
   const togglePlayback = async () => {
-    if (!audioRef.current) return;
+    if (!audioRef.current || !audioContextRef.current) return;
 
     try {
       if (isPlaying) {
@@ -125,15 +158,22 @@ export function SoothingMusic({ isDarkMode, isVibrant, t }: SoothingMusicProps) 
       } else {
         setIsLoading(true);
         setError(null);
-        
+
+        // Resume audio context if suspended
+        if (audioContextRef.current.state === 'suspended') {
+          await audioContextRef.current.resume();
+        }
+
         // If no source is set, load the current track
         if (!audioRef.current.src) {
           audioRef.current.src = audioTracks[currentTrack].url;
-          await audioRef.current.load();
+          audioRef.current.load();
         }
-        
+
+        // Play the track
         await audioRef.current.play();
         setIsPlaying(true);
+        setIsLoading(false);
       }
     } catch (error) {
       handlePlayError(error as Error);
