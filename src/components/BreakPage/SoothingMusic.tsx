@@ -8,19 +8,31 @@ interface SoothingMusicProps {
   t: any;
 }
 
-// Audio tracks configuration with more reliable sources
+// Audio tracks configuration with multiple fallback sources
 const audioTracks = [
   {
     name: 'Ocean Waves',
-    url: 'https://assets.mixkit.co/music/preview/mixkit-ocean-waves-loop-1196.mp3'
+    urls: [
+      'https://assets.mixkit.co/music/preview/mixkit-ocean-waves-loop-1196.mp3',
+      'https://cdn.freesound.org/previews/617/617306_1648170-lq.mp3',
+      'https://cdn.freesound.org/previews/531/531947_11235789-lq.mp3'
+    ]
   },
   {
     name: 'Forest Birds',
-    url: 'https://assets.mixkit.co/music/preview/mixkit-forest-birds-loop-1242.mp3'
+    urls: [
+      'https://assets.mixkit.co/music/preview/mixkit-forest-birds-loop-1242.mp3',
+      'https://cdn.freesound.org/previews/618/618345_5674468-lq.mp3',
+      'https://cdn.freesound.org/previews/467/467613_9497060-lq.mp3'
+    ]
   },
   {
     name: 'Gentle Rain',
-    url: 'https://assets.mixkit.co/music/preview/mixkit-rain-and-thunder-loop-1248.mp3'
+    urls: [
+      'https://assets.mixkit.co/music/preview/mixkit-rain-and-thunder-loop-1248.mp3',
+      'https://cdn.freesound.org/previews/346/346562_5121236-lq.mp3',
+      'https://cdn.freesound.org/previews/169/169131_2582687-lq.mp3'
+    ]
   }
 ];
 
@@ -28,6 +40,7 @@ export function SoothingMusic({ isDarkMode, isVibrant, t }: SoothingMusicProps) 
   const { soundEnabled } = useGameAudio();
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTrack, setCurrentTrack] = useState(0);
+  const [currentUrlIndex, setCurrentUrlIndex] = useState(0);
   const [volume, setVolume] = useState(0.5);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,6 +50,7 @@ export function SoothingMusic({ isDarkMode, isVibrant, t }: SoothingMusicProps) 
   const audioContextRef = useRef<AudioContext | null>(null);
   const gainNodeRef = useRef<GainNode | null>(null);
   const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
+  const retryCountRef = useRef(0);
 
   // Initialize audio context and elements
   useEffect(() => {
@@ -65,11 +79,12 @@ export function SoothingMusic({ isDarkMode, isVibrant, t }: SoothingMusicProps) 
 
     audio.addEventListener('ended', () => {
       setCurrentTrack((prev) => (prev + 1) % audioTracks.length);
+      setCurrentUrlIndex(0); // Reset URL index for new track
     });
 
     audio.addEventListener('error', (e) => {
       console.error('Audio error:', e);
-      handlePlayError(new Error('Failed to load audio track'));
+      handleLoadError();
     });
 
     // Create and connect source node
@@ -109,21 +124,46 @@ export function SoothingMusic({ isDarkMode, isVibrant, t }: SoothingMusicProps) 
   // Handle track changes
   useEffect(() => {
     if (audioRef.current) {
+      setCurrentUrlIndex(0); // Reset URL index when track changes
+      retryCountRef.current = 0; // Reset retry count
       loadTrack();
     }
   }, [currentTrack]);
+
+  const handleLoadError = () => {
+    const track = audioTracks[currentTrack];
+    const nextUrlIndex = currentUrlIndex + 1;
+
+    if (nextUrlIndex < track.urls.length) {
+      // Try next fallback URL
+      console.log(`Trying fallback URL ${nextUrlIndex + 1} for ${track.name}`);
+      setCurrentUrlIndex(nextUrlIndex);
+      loadTrack();
+    } else if (retryCountRef.current < 2) {
+      // Retry current URL a few times
+      retryCountRef.current++;
+      console.log(`Retrying current URL (attempt ${retryCountRef.current + 1})`);
+      setTimeout(loadTrack, 1000);
+    } else {
+      // Move to next track if all retries and fallbacks fail
+      console.log('All URLs failed, moving to next track');
+      handlePlayError(new Error('Failed to load audio track'));
+    }
+  };
 
   const handlePlayError = (error: Error) => {
     console.error('Playback error:', error);
     setIsPlaying(false);
     setIsLoading(false);
-    setError('Unable to play audio. Please try again or select another track.');
+    setError('Unable to play audio. Trying another track...');
 
     // Clear error after 3 seconds
     setTimeout(() => setError(null), 3000);
 
     // Try next track
     setCurrentTrack((prev) => (prev + 1) % audioTracks.length);
+    setCurrentUrlIndex(0); // Reset URL index for new track
+    retryCountRef.current = 0; // Reset retry count
   };
 
   const loadTrack = () => {
@@ -133,8 +173,14 @@ export function SoothingMusic({ isDarkMode, isVibrant, t }: SoothingMusicProps) 
       setIsLoading(true);
       setError(null);
       
+      // Get current track and URL
+      const track = audioTracks[currentTrack];
+      const currentUrl = track.urls[currentUrlIndex];
+      
+      console.log(`Loading track: ${track.name}, URL index: ${currentUrlIndex}`);
+      
       // Set new source
-      audioRef.current.src = audioTracks[currentTrack].url;
+      audioRef.current.src = currentUrl;
       
       // Load the track
       audioRef.current.load();
@@ -166,7 +212,8 @@ export function SoothingMusic({ isDarkMode, isVibrant, t }: SoothingMusicProps) 
 
         // If no source is set, load the current track
         if (!audioRef.current.src) {
-          audioRef.current.src = audioTracks[currentTrack].url;
+          const track = audioTracks[currentTrack];
+          audioRef.current.src = track.urls[currentUrlIndex];
           audioRef.current.load();
         }
 
