@@ -30,91 +30,113 @@ export function SoothingMusic({ isDarkMode, isVibrant, t }: SoothingMusicProps) 
   const [currentTrack, setCurrentTrack] = useState(0);
   const [volume, setVolume] = useState(0.5);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const gainNodeRef = useRef<GainNode | null>(null);
 
-  // Initialize Web Audio API
+  // Initialize audio element
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      // Create Audio Context
-      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-      audioContextRef.current = new AudioContext();
-      
-      // Create Gain Node for volume control
-      const gainNode = audioContextRef.current.createGain();
-      gainNode.gain.value = volume;
-      gainNode.connect(audioContextRef.current.destination);
-      gainNodeRef.current = gainNode;
+    const audio = new Audio();
+    audio.volume = volume;
+    
+    // Set up event listeners
+    audio.addEventListener('canplaythrough', () => {
+      setIsLoading(false);
+      if (isPlaying) {
+        audio.play().catch(handlePlayError);
+      }
+    });
 
-      // Create audio element
-      const audio = new Audio();
-      audio.crossOrigin = "anonymous";
-      audioRef.current = audio;
+    audio.addEventListener('ended', () => {
+      setCurrentTrack((prev) => (prev + 1) % audioTracks.length);
+    });
 
-      return () => {
-        if (audioContextRef.current?.state !== 'closed') {
-          audioContextRef.current?.close();
-        }
-      };
-    }
+    audio.addEventListener('error', (e) => {
+      console.error('Audio error:', e);
+      handlePlayError(new Error('Failed to load audio'));
+    });
+
+    audioRef.current = audio;
+
+    // Cleanup
+    return () => {
+      audio.pause();
+      audio.src = '';
+      audio.remove();
+    };
   }, []);
-
-  // Handle track changes
-  useEffect(() => {
-    if (isPlaying && audioRef.current) {
-      loadAndPlayTrack();
-    }
-  }, [currentTrack]);
 
   // Update volume
   useEffect(() => {
-    if (gainNodeRef.current) {
-      gainNodeRef.current.gain.value = volume;
+    if (audioRef.current) {
+      audioRef.current.volume = volume;
     }
   }, [volume]);
 
-  // Load and play track
-  const loadAndPlayTrack = async () => {
-    if (!audioRef.current || !audioContextRef.current || !gainNodeRef.current) return;
+  // Handle track changes
+  useEffect(() => {
+    if (audioRef.current) {
+      loadTrack();
+    }
+  }, [currentTrack]);
+
+  const handlePlayError = (error: Error) => {
+    console.error('Playback error:', error);
+    setIsPlaying(false);
+    setIsLoading(false);
+    setError('Unable to play audio. Please try again.');
+
+    // Clear error after 3 seconds
+    setTimeout(() => setError(null), 3000);
+  };
+
+  const loadTrack = async () => {
+    if (!audioRef.current) return;
 
     try {
       setIsLoading(true);
+      setError(null);
       
-      // Reset audio element
+      // Set new source
       audioRef.current.src = audioTracks[currentTrack].url;
       
-      // Add error handling for audio loading
-      audioRef.current.onerror = (e) => {
-        console.error('Error loading audio:', e);
-        setIsLoading(false);
-        setIsPlaying(false);
-      };
-
-      // Create media element source
-      const source = audioContextRef.current.createMediaElementSource(audioRef.current);
-      source.connect(gainNodeRef.current);
-
-      // Set up event listeners
-      audioRef.current.oncanplaythrough = () => {
-        setIsLoading(false);
-      };
-
-      audioRef.current.onended = () => {
-        setCurrentTrack((prev) => (prev + 1) % audioTracks.length);
-      };
-
-      // Start playback
-      await audioRef.current.play();
+      // Load the audio
+      await audioRef.current.load();
       
-      // Resume audio context if suspended
-      if (audioContextRef.current.state === 'suspended') {
-        await audioContextRef.current.resume();
+      // If we were playing, continue playing the new track
+      if (isPlaying) {
+        try {
+          await audioRef.current.play();
+        } catch (error) {
+          handlePlayError(error as Error);
+        }
       }
     } catch (error) {
-      console.error('Error loading audio:', error);
-      setIsLoading(false);
-      setIsPlaying(false);
+      handlePlayError(error as Error);
+    }
+  };
+
+  const togglePlayback = async () => {
+    if (!audioRef.current) return;
+
+    try {
+      if (isPlaying) {
+        audioRef.current.pause();
+        setIsPlaying(false);
+      } else {
+        setIsLoading(true);
+        setError(null);
+        
+        // If no source is set, load the current track
+        if (!audioRef.current.src) {
+          audioRef.current.src = audioTracks[currentTrack].url;
+          await audioRef.current.load();
+        }
+        
+        await audioRef.current.play();
+        setIsPlaying(true);
+      }
+    } catch (error) {
+      handlePlayError(error as Error);
     }
   };
 
@@ -136,15 +158,7 @@ export function SoothingMusic({ isDarkMode, isVibrant, t }: SoothingMusicProps) 
         relative
       `}>
         <button
-          onClick={() => {
-            if (isPlaying) {
-              audioRef.current?.pause();
-              setIsPlaying(false);
-            } else {
-              loadAndPlayTrack();
-              setIsPlaying(true);
-            }
-          }}
+          onClick={togglePlayback}
           disabled={isLoading}
           className="w-24 h-24 text-white hover:scale-110 transition-transform relative disabled:opacity-50"
         >
@@ -167,6 +181,13 @@ export function SoothingMusic({ isDarkMode, isVibrant, t }: SoothingMusicProps) 
           ]}
         </h3>
       </div>
+
+      {/* Error Message */}
+      {error && (
+        <div className="mt-4 px-4 py-2 rounded-lg bg-red-100 text-red-700 text-sm">
+          {error}
+        </div>
+      )}
 
       {/* Volume Control */}
       <div className="mt-6 w-64">
