@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Volume2, Star, Sparkles, Play, XCircle } from 'lucide-react';
+import { Volume2, Star, Sparkles, Home, ArrowLeft } from 'lucide-react';
 import { useGameAudio } from './GameAudioContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { updateProgressData, addCompletedLesson } from '../../utils/progressStorage';
@@ -11,50 +11,60 @@ interface WheresMyToyGameProps {
   language: string;
 }
 
-// Game locations with translations and visual zones
-const locations = [
+// Toy data with translations and reliable images
+const toys = [
   {
-    id: 'table',
-    name: { en: 'on the table', es: 'sobre la mesa' },
-    position: { x: 50, y: 30 },
-    zone: { x: 40, y: 20, width: 20, height: 20 },
+    id: 'teddy',
+    name: { en: 'teddy bear', es: 'oso de peluche' },
+    image: 'https://images.unsplash.com/photo-1559454403-b8fb88521f11?auto=format&fit=crop&w=300&h=300',
+    color: 'from-yellow-400 to-yellow-600'
+  },
+  {
+    id: 'ball',
+    name: { en: 'colorful ball', es: 'pelota de colores' },
+    image: 'https://images.unsplash.com/photo-1515548950066-8e1c7e9e6c62?auto=format&fit=crop&w=300&h=300',
     color: 'from-blue-400 to-blue-600'
   },
   {
-    id: 'chair',
-    name: { en: 'next to the chair', es: 'junto a la silla' },
-    position: { x: 20, y: 50 },
-    zone: { x: 15, y: 40, width: 20, height: 20 },
+    id: 'blocks',
+    name: { en: 'building blocks', es: 'bloques de construcción' },
+    image: 'https://images.unsplash.com/photo-1587654780291-39c9404d746b?auto=format&fit=crop&w=300&h=300',
+    color: 'from-red-400 to-red-600'
+  },
+  {
+    id: 'car',
+    name: { en: 'toy car', es: 'carro de juguete' },
+    image: 'https://images.unsplash.com/photo-1594787318286-3d835c1d207f?auto=format&fit=crop&w=300&h=300',
     color: 'from-green-400 to-green-600'
   },
   {
-    id: 'bed',
-    name: { en: 'under the bed', es: 'debajo de la cama' },
-    position: { x: 80, y: 70 },
-    zone: { x: 70, y: 60, width: 20, height: 20 },
-    color: 'from-yellow-400 to-yellow-600'
+    id: 'doll',
+    name: { en: 'doll', es: 'muñeca' },
+    image: 'https://images.unsplash.com/photo-1613040809024-b4ef7ba99bc3?auto=format&fit=crop&w=300&h=300',
+    color: 'from-pink-400 to-pink-600'
   }
 ];
 
 export function WheresMyToyGame({ isDarkMode, isVibrant, onExit, language }: WheresMyToyGameProps) {
   const { user } = useAuth();
   const { soundEnabled, toggleSound, playGameSound, speakText } = useGameAudio();
-  const [currentLocation, setCurrentLocation] = useState(0);
+  const [currentToy, setCurrentToy] = useState(0);
+  const [displayedToys, setDisplayedToys] = useState<typeof toys>([]);
   const [score, setScore] = useState(0);
   const [showCelebration, setShowCelebration] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
-  const [toyPosition, setToyPosition] = useState({ x: 50, y: 50 });
-  const [gameState, setGameState] = useState<'dragging' | 'answering'>('dragging');
-  const [options, setOptions] = useState<string[]>([]);
   const [round, setRound] = useState(1);
   const [totalRounds] = useState(5);
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const [selectedOption, setSelectedOption] = useState<string | null>(null);
-  const [isOptionError, setIsOptionError] = useState(false);
-  const [showLocationLabel, setShowLocationLabel] = useState(false);
-  const [isTargetZoneActive, setIsTargetZoneActive] = useState(false);
+  const [selectedToy, setSelectedToy] = useState<string | null>(null);
   const [isToyAnimating, setIsToyAnimating] = useState(false);
+  const [showToyLabel, setShowToyLabel] = useState(false);
   const [gameComplete, setGameComplete] = useState(false);
+  const [redirectTimer, setRedirectTimer] = useState<number | null>(null);
+
+  // Initialize game
+  useEffect(() => {
+    generateNewRound();
+  }, []);
 
   // Handle game completion
   const handleGameCompletion = async () => {
@@ -64,7 +74,7 @@ export function WheresMyToyGame({ isDarkMode, isVibrant, onExit, language }: Whe
     playGameSound('success');
 
     try {
-      // Update reward points (10 points per correct placement)
+      // Update reward points (10 points per correct toy found)
       await updateProgressData(user.uid, {
         rewardPoints: score * 10
       });
@@ -80,184 +90,107 @@ export function WheresMyToyGame({ isDarkMode, isVibrant, onExit, language }: Whe
         speakText(victoryMessage, language === 'es' ? 'es-ES' : 'en-US');
       }
 
-      // Return to learning path after delay
-      setTimeout(() => {
-        onExit();
-      }, 3000);
+      // Start redirect countdown
+      let countdown = 5;
+      const timer = window.setInterval(() => {
+        countdown--;
+        setRedirectTimer(countdown);
+        
+        if (countdown <= 0) {
+          clearInterval(timer);
+          onExit(); // Redirect back to learning path
+        }
+      }, 1000);
+
     } catch (error) {
       console.error('Error updating progress:', error);
       // Still exit after delay even if progress update fails
       setTimeout(() => {
         onExit();
-      }, 3000);
+      }, 5000);
     }
   };
 
-  // Initialize game
-  useEffect(() => {
-    generateOptions();
-    speakPrompt();
-  }, [currentLocation]);
-
-  const speakPrompt = () => {
-    if (!soundEnabled) return;
-    const location = locations[currentLocation];
-    const prompt = gameState === 'dragging'
-      ? language === 'es'
-        ? `¿Puedes poner el oso ${location.name.es}?`
-        : `Can you put the bear ${location.name.en}?`
-      : language === 'es'
-        ? '¿Dónde está el oso?'
-        : 'Where is the bear?';
-
-    speakText(prompt, language === 'es' ? 'es-ES' : 'en-US');
-  };
-
-  const generateOptions = () => {
-    let allOptions = locations.map(loc => loc.name[language as keyof typeof loc.name]);
-    allOptions = allOptions.sort(() => Math.random() - 0.5);
-    setOptions(allOptions);
-  };
-
-  const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
-    if (gameState !== 'dragging' || gameComplete) return;
-    setIsDragging(true);
-    playGameSound('click');
+  // Generate new round with shuffled toys
+  const generateNewRound = () => {
+    setIsTransitioning(true);
+    setShowToyLabel(false);
+    setSelectedToy(null);
     
-    const container = e.currentTarget.getBoundingClientRect();
-    const pos = 'touches' in e 
-      ? { 
-          x: ((e.touches[0].clientX - container.left) / container.width) * 100,
-          y: ((e.touches[0].clientY - container.top) / container.height) * 100
-        }
-      : {
-          x: ((e.clientX - container.left) / container.width) * 100,
-          y: ((e.clientY - container.top) / container.height) * 100
-        };
+    // Shuffle toys and select 4 random ones (including the target)
+    const shuffledToys = [...toys].sort(() => Math.random() - 0.5);
+    const selectedToys = shuffledToys.slice(0, 4);
     
-    setToyPosition(pos);
-  };
-
-  const handleDragMove = (e: React.MouseEvent | React.TouchEvent) => {
-    if (!isDragging) return;
-    
-    const container = e.currentTarget.getBoundingClientRect();
-    const pos = 'touches' in e 
-      ? {
-          x: ((e.touches[0].clientX - container.left) / container.width) * 100,
-          y: ((e.touches[0].clientY - container.top) / container.height) * 100
-        }
-      : {
-          x: ((e.clientX - container.left) / container.width) * 100,
-          y: ((e.clientY - container.top) / container.height) * 100
-        };
-    
-    setToyPosition(pos);
-
-    // Check if toy is near target zone
-    const targetZone = locations[currentLocation].zone;
-    const isNearZone = 
-      Math.abs(pos.x - targetZone.x) < targetZone.width &&
-      Math.abs(pos.y - targetZone.y) < targetZone.height;
-    
-    setIsTargetZoneActive(isNearZone);
-    
-    // Play sound when entering target zone
-    if (isNearZone && !isTargetZoneActive) {
-      playGameSound('click');
+    // Ensure target toy is included
+    if (!selectedToys.find(toy => toy.id === toys[currentToy].id)) {
+      selectedToys[Math.floor(Math.random() * 4)] = toys[currentToy];
     }
-  };
+    
+    // Shuffle the positions again
+    setDisplayedToys(selectedToys.sort(() => Math.random() - 0.5));
 
-  const handleDragEnd = () => {
-    if (!isDragging) return;
-    setIsDragging(false);
-    setIsTargetZoneActive(false);
-
-    const targetZone = locations[currentLocation].zone;
-    const isInZone = 
-      toyPosition.x >= targetZone.x &&
-      toyPosition.x <= targetZone.x + targetZone.width &&
-      toyPosition.y >= targetZone.y &&
-      toyPosition.y <= targetZone.y + targetZone.height;
-
-    if (isInZone) {
-      playGameSound('success');
-      setIsToyAnimating(true);
-      setShowLocationLabel(true);
-      
-      if (soundEnabled) {
-        const celebration = language === 'es'
-          ? '¡Muy bien! Ahora dime, ¿dónde está el oso?'
-          : 'Great job! Now tell me, where is the bear?';
-        speakText(celebration, language === 'es' ? 'es-ES' : 'en-US');
-      }
-      
-      setTimeout(() => {
-        setIsToyAnimating(false);
-        setGameState('answering');
-      }, 1000);
-    } else {
-      playGameSound('error');
-      
-      if (soundEnabled) {
-        const tryAgain = language === 'es'
-          ? 'Inténtalo de nuevo'
-          : 'Try again';
-        speakText(tryAgain, language === 'es' ? 'es-ES' : 'en-US');
-      }
+    // Speak the prompt
+    if (soundEnabled) {
+      const prompt = language === 'es'
+        ? `¿Puedes encontrar el ${toys[currentToy].name.es}?`
+        : `Can you find the ${toys[currentToy].name.en}?`;
+      speakText(prompt, language === 'es' ? 'es-ES' : 'en-US');
     }
+
+    setTimeout(() => {
+      setIsTransitioning(false);
+    }, 300);
   };
 
-  const handleAnswerClick = (answer: string) => {
+  const handleToyClick = (toyId: string) => {
     if (gameComplete) return;
-    setSelectedOption(answer);
-    const correctAnswer = locations[currentLocation].name[language as keyof typeof locations[0]['name']];
-    
-    if (answer === correctAnswer) {
+    setSelectedToy(toyId);
+
+    if (toyId === toys[currentToy].id) {
       playGameSound('success');
       setScore(score + 1);
       setShowCelebration(true);
+      setIsToyAnimating(true);
+      setShowToyLabel(true);
       
       if (soundEnabled) {
         const celebration = language === 'es'
-          ? '¡Excelente trabajo!'
-          : 'Excellent job!';
+          ? '¡Muy bien! ¡Lo encontraste!'
+          : 'Great job! You found it!';
         speakText(celebration, language === 'es' ? 'es-ES' : 'en-US');
       }
 
       setTimeout(() => {
+        setIsToyAnimating(false);
         setShowCelebration(false);
         if (round < totalRounds) {
-          setIsTransitioning(true);
-          setTimeout(() => {
-            setRound(prev => prev + 1);
-            setCurrentLocation((currentLocation + 1) % locations.length);
-            setGameState('dragging');
-            setToyPosition({ x: 50, y: 50 });
-            setShowLocationLabel(false);
-            setSelectedOption(null);
-            setIsTransitioning(false);
-          }, 500);
+          setRound(prev => prev + 1);
+          setCurrentToy((currentToy + 1) % toys.length);
+          generateNewRound();
         } else {
           handleGameCompletion();
         }
       }, 2000);
     } else {
       playGameSound('error');
-      setIsOptionError(true);
       
       if (soundEnabled) {
         const tryAgain = language === 'es'
-          ? 'Inténtalo de nuevo'
-          : 'Try again';
+          ? '¡Inténtalo de nuevo!'
+          : 'Try again!';
         speakText(tryAgain, language === 'es' ? 'es-ES' : 'en-US');
       }
 
       setTimeout(() => {
-        setIsOptionError(false);
-        setSelectedOption(null);
+        setSelectedToy(null);
       }, 500);
     }
+  };
+
+  // Handle back button click
+  const handleBackClick = () => {
+    // Just call onExit without updating progress or showing celebration
+    onExit();
   };
 
   return (
@@ -265,6 +198,19 @@ export function WheresMyToyGame({ isDarkMode, isVibrant, onExit, language }: Whe
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
+          {/* Back Button */}
+          <button
+            onClick={handleBackClick}
+            className={`
+              p-2 rounded-full
+              ${isDarkMode ? 'bg-gray-800' : 'bg-white'}
+              shadow-lg
+              transition-transform hover:scale-110
+            `}
+          >
+            <ArrowLeft className="w-6 h-6" />
+          </button>
+
           <div className="flex items-center space-x-4">
             {/* Progress Indicator */}
             <div className={`
@@ -273,8 +219,8 @@ export function WheresMyToyGame({ isDarkMode, isVibrant, onExit, language }: Whe
               shadow-lg
             `}>
               {language === 'es'
-                ? `Ronda ${round} de ${totalRounds}`
-                : `Round ${round} of ${totalRounds}`}
+                ? `Juguete ${round} de ${totalRounds}`
+                : `Toy ${round} of ${totalRounds}`}
             </div>
 
             <div className={`
@@ -305,159 +251,77 @@ export function WheresMyToyGame({ isDarkMode, isVibrant, onExit, language }: Whe
           relative p-8 rounded-3xl
           ${isDarkMode ? 'bg-gray-800' : 'bg-white'}
           shadow-xl
-          min-h-[600px]
-        `}
-          onMouseMove={handleDragMove}
-          onTouchMove={handleDragMove}
-          onMouseUp={handleDragEnd}
-          onTouchEnd={handleDragEnd}
-        >
-          {/* Target Location Banner */}
+        `}>
+          {/* Instruction Banner */}
           <div className={`
-            absolute top-4 left-1/2 transform -translate-x-1/2
-            px-6 py-3 rounded-full
-            ${isVibrant
-              ? `bg-gradient-to-r ${locations[currentLocation].color}`
-              : isDarkMode
-                ? 'bg-gray-700'
-                : 'bg-purple-600'
-            }
-            text-white font-bold text-lg
-            shadow-lg
-            transition-opacity duration-300
+            text-center mb-8 p-4 rounded-xl
+            ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}
             ${isTransitioning ? 'opacity-0' : 'opacity-100'}
-          `}>
-            {language === 'es'
-              ? `Pon el oso ${locations[currentLocation].name.es}`
-              : `Put the bear ${locations[currentLocation].name.en}`}
-          </div>
-
-          {/* Room Background */}
-          <div className={`
-            absolute inset-0 rounded-3xl overflow-hidden
             transition-opacity duration-300
-            ${isTransitioning ? 'opacity-0' : 'opacity-100'}
           `}>
-            <div className="w-full h-full bg-gradient-to-b from-blue-100 to-blue-200">
-              {/* Furniture */}
-              <div className={`
-                absolute w-32 h-4 bg-brown-600 rounded-lg
-                transition-all duration-300
-                ${isTargetZoneActive ? 'ring-4 ring-yellow-400 scale-105' : ''}
-              `} style={{ left: '40%', top: '20%' }}>
-                <div className="w-full h-full bg-gradient-to-r from-yellow-800 to-yellow-700 rounded-lg" />
-              </div>
-              
-              <div className={`
-                absolute w-16 h-32 bg-brown-500 rounded-lg
-                transition-all duration-300
-                ${isTargetZoneActive ? 'ring-4 ring-yellow-400 scale-105' : ''}
-              `} style={{ left: '15%', top: '40%' }}>
-                <div className="w-full h-full bg-gradient-to-b from-yellow-800 to-yellow-700 rounded-lg" />
-              </div>
-              
-              <div className={`
-                absolute w-48 h-8 bg-brown-700 rounded-lg
-                transition-all duration-300
-                ${isTargetZoneActive ? 'ring-4 ring-yellow-400 scale-105' : ''}
-              `} style={{ left: '70%', top: '60%' }}>
-                <div className="w-full h-full bg-gradient-to-r from-yellow-900 to-yellow-800 rounded-lg" />
-              </div>
-            </div>
-          </div>
-
-          {/* Draggable Toy */}
-          <div
-            className={`
-              absolute w-16 h-16 cursor-move
-              transform -translate-x-1/2 -translate-y-1/2
-              transition-all duration-300
-              ${isDragging ? 'scale-110 shadow-lg' : 'scale-100'}
-              ${isToyAnimating ? 'animate-bounce' : ''}
-            `}
-            style={{ left: `${toyPosition.x}%`, top: `${toyPosition.y}%` }}
-            onMouseDown={handleDragStart}
-            onTouchStart={handleDragStart}
-          >
-            {/* Bear Body */}
-            <div className={`
-              w-full h-full rounded-full
-              ${isVibrant
-                ? 'bg-gradient-to-b from-yellow-500 to-yellow-600'
-                : isDarkMode
-                  ? 'bg-yellow-600'
-                  : 'bg-yellow-500'
-              }
-              shadow-lg
-              relative
+            <h2 className={`
+              text-2xl font-bold font-comic
+              ${isDarkMode ? 'text-white' : 'text-gray-900'}
             `}>
-              {/* Bear Face */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                {/* Eyes */}
-                <div className="flex space-x-4 mb-2">
-                  <div className="w-2 h-2 rounded-full bg-brown-900" />
-                  <div className="w-2 h-2 rounded-full bg-brown-900" />
-                </div>
-                {/* Nose */}
-                <div className="w-3 h-2 rounded-full bg-brown-900" />
-                {/* Mouth */}
-                <div className="w-4 h-1 mt-1 rounded-full bg-brown-900" />
-              </div>
-              
-              {/* Ears */}
-              <div className="absolute -top-2 -left-2 w-4 h-4 rounded-full bg-yellow-600" />
-              <div className="absolute -top-2 -right-2 w-4 h-4 rounded-full bg-yellow-600" />
-            </div>
-
-            {/* Location Label */}
-            {showLocationLabel && (
-              <div className={`
-                absolute -top-8 left-1/2 transform -translate-x-1/2
-                bg-black/50 backdrop-blur-sm
-                text-white text-center px-4 py-2 rounded-full
-                font-bold text-sm
-                transition-opacity duration-300
-                whitespace-nowrap
-              `}>
-                {locations[currentLocation].name[language as keyof typeof locations[0]['name']]}
-              </div>
-            )}
+              {language === 'es'
+                ? `¿Puedes encontrar el ${toys[currentToy].name.es}?`
+                : `Can you find the ${toys[currentToy].name.en}?`}
+            </h2>
           </div>
 
-          {/* Answer Options */}
-          {gameState === 'answering' && (
-            <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 w-full max-w-md">
-              <div className="grid grid-cols-1 gap-4">
-                {options.map((option, index) => (
-                  <button
-                    key={index}
-                    onClick={() => handleAnswerClick(option)}
-                    disabled={gameComplete}
-                    className={`
-                      px-6 py-3 rounded-xl
-                      font-bold text-white
-                      transform transition-all duration-300
-                      ${isVibrant
-                        ? 'bg-gradient-to-r from-purple-500 via-pink-500 to-red-500'
-                        : 'bg-purple-600'
-                      }
-                      ${selectedOption === option && isOptionError
-                        ? 'animate-[shake_0.5s_ease-in-out] border-2 border-red-500'
-                        : 'hover:scale-105'
-                      }
-                      shadow-lg
-                      disabled:opacity-50
-                    `}
-                  >
-                    {option}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Toys Grid */}
+          <div className={`
+            grid grid-cols-2 gap-6
+            transition-opacity duration-300
+            ${isTransitioning ? 'opacity-0' : 'opacity-100'}
+          `}>
+            {displayedToys.map((toy, index) => (
+              <button
+                key={index}
+                onClick={() => handleToyClick(toy.id)}
+                disabled={gameComplete}
+                className={`
+                  aspect-square rounded-2xl overflow-hidden
+                  transform transition-all duration-300
+                  ${selectedToy === toy.id
+                    ? toy.id === toys[currentToy].id
+                      ? 'ring-4 ring-green-500 scale-110'
+                      : 'ring-4 ring-red-500 animate-[shake_0.5s_ease-in-out]'
+                    : 'hover:scale-105'
+                  }
+                  ${toy.id === toys[currentToy].id && isToyAnimating ? 'animate-bounce' : ''}
+                  shadow-lg
+                  relative
+                `}
+              >
+                <img
+                  src={toy.image}
+                  alt={toy.name[language as keyof typeof toy.name]}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.onerror = null;
+                    target.src = "https://images.unsplash.com/photo-1559454403-b8fb88521f11?auto=format&fit=crop&w=300&h=300";
+                  }}
+                />
+
+                {/* Toy Label */}
+                {(showToyLabel && toy.id === toys[currentToy].id) && (
+                  <div className={`
+                    absolute bottom-0 left-0 right-0
+                    bg-black/50 backdrop-blur-sm
+                    text-white text-center py-2 font-bold
+                    transform transition-all duration-300
+                  `}>
+                    {toy.name[language as keyof typeof toy.name]}
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
 
           {/* Celebration Overlay */}
-          {showCelebration && (
+          {(showCelebration || gameComplete) && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-3xl">
               <div className="text-center">
                 <h3 className="text-4xl font-bold text-white mb-4">
@@ -466,7 +330,7 @@ export function WheresMyToyGame({ isDarkMode, isVibrant, onExit, language }: Whe
                       ? '¡Felicitaciones! 🎉\n¡Has encontrado todos los juguetes!'
                       : 'Congratulations! 🎉\nYou found all the toys!'
                     : language === 'es'
-                      ? '¡Excelente! 🎉'
+                      ? '¡Muy bien! 🎉'
                       : 'Great Job! 🎉'
                   }
                 </h3>
@@ -488,11 +352,35 @@ export function WheresMyToyGame({ isDarkMode, isVibrant, onExit, language }: Whe
                   ))}
                 </div>
                 {gameComplete && (
-                  <p className="text-white text-xl mt-4">
-                    {language === 'es'
-                      ? `¡Ganaste ${score * 10} puntos!`
-                      : `You earned ${score * 10} points!`}
-                  </p>
+                  <>
+                    <p className="text-white text-xl mt-4">
+                      {language === 'es'
+                        ? `¡Ganaste ${score * 10} puntos!`
+                        : `You earned ${score * 10} points!`}
+                    </p>
+                    {redirectTimer !== null && (
+                      <p className="text-white text-lg mt-2">
+                        {language === 'es'
+                          ? `Volviendo al menú en ${redirectTimer}...`
+                          : `Returning to menu in ${redirectTimer}...`}
+                      </p>
+                    )}
+                    <button
+                      onClick={onExit}
+                      className={`
+                        mt-6 px-6 py-3 rounded-xl
+                        flex items-center gap-2 mx-auto
+                        font-bold text-white
+                        transform hover:scale-105
+                        transition-all duration-300
+                        ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100 text-gray-900'}
+                        shadow-lg
+                      `}
+                    >
+                      <Home className="w-5 h-5" />
+                      <span>{language === 'es' ? 'Volver al Menú' : 'Return to Menu'}</span>
+                    </button>
+                  </>
                 )}
               </div>
             </div>
