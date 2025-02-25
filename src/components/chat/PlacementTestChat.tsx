@@ -20,6 +20,7 @@ export function PlacementTestChat({ isDarkMode, isVibrant, onComplete }: Placeme
   const [isLoading, setIsLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Questions for the placement test
   const questions = [
@@ -98,13 +99,17 @@ export function PlacementTestChat({ isDarkMode, isVibrant, onComplete }: Placeme
         await savePlacementTestResult(result);
         console.log('Placement test result saved:', result); // Debug log
         
-        // Add completion message to chat
-        setMessages(prev => [...prev, { text: data.chatResponse, isBot: true }]);
+        // Add completion messages to chat
+        setMessages(prev => [
+          ...prev,
+          { text: data.chatResponse, isBot: true },
+          { text: "Updating the Learn page. Please go there to see your suggested games.", isBot: true }
+        ]);
         
         // Notify parent component
         onComplete?.(result);
         
-        // Close modal after a delay
+        // Close modal after a delay to allow reading the final messages
         setTimeout(() => setIsOpen(false), 5000);
       }
     } catch (error) {
