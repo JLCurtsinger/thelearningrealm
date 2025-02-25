@@ -27,7 +27,7 @@ const actions = [
   },
   {
     id: 'spinning',
-    animation: 'animate-spin',
+    animation: 'animate-spin-character',
     text: { en: 'spinning', es: 'girando' },
     prompt: { en: 'Who is spinning?', es: '¿Quién está girando?' },
     icon: '🌀'
@@ -45,6 +45,7 @@ export function ICanMoveGame({ isDarkMode, isVibrant, onExit, language }: ICanMo
   const [isCharacterAnimating, setIsCharacterAnimating] = useState(false);
   const [showActionLabel, setShowActionLabel] = useState(false);
   const [isError, setIsError] = useState(false);
+  const [promptReady, setPromptReady] = useState(false);
 
   useEffect(() => {
     if (soundEnabled && !isStarted) {
@@ -58,10 +59,14 @@ export function ICanMoveGame({ isDarkMode, isVibrant, onExit, language }: ICanMo
   }, [isStarted]);
 
   const handleCharacterClick = (action: string, index: number) => {
+    if (!promptReady) return;
     setSelectedCharacter(index);
 
-    if (action === actions[currentAction].id) {
+    const targetAction = actions[currentAction];
+    if (action === targetAction.id) {
       playGameSound('success');
+      setScore(score + 1);
+      setShowCelebration(true);
       setIsCharacterAnimating(true);
       setShowActionLabel(true);
       
@@ -71,14 +76,10 @@ export function ICanMoveGame({ isDarkMode, isVibrant, onExit, language }: ICanMo
           : 'Great job!';
         speakText(celebration, language === 'es' ? 'es-ES' : 'en-US');
       }
-
-      setScore(score + 1);
-      setShowCelebration(true);
       
       setTimeout(() => {
         setIsCharacterAnimating(false);
         setShowCelebration(false);
-        setShowActionLabel(false);
         if (currentAction < actions.length - 1) {
           setIsTransitioning(true);
           setTimeout(() => {
@@ -86,6 +87,8 @@ export function ICanMoveGame({ isDarkMode, isVibrant, onExit, language }: ICanMo
             setSelectedCharacter(null);
             setIsTransitioning(false);
           }, 500);
+        } else {
+          onExit();
         }
       }, 2000);
     } else {
@@ -115,13 +118,14 @@ export function ICanMoveGame({ isDarkMode, isVibrant, onExit, language }: ICanMo
     return (
       <button
         onClick={onClick}
-        disabled={showCelebration}
+        disabled={!promptReady}
         className={`
           relative w-48 h-48
           transform transition-all duration-300
           hover:scale-105 focus:outline-none
           ${isSelected && isError ? 'animate-shake' : ''}
           disabled:opacity-50
+          ${action === 'jumping' ? 'mt-16' : ''} // Extra space for jumping animation
         `}
       >
         {/* Character Body */}
@@ -135,15 +139,17 @@ export function ICanMoveGame({ isDarkMode, isVibrant, onExit, language }: ICanMo
           }
           rounded-full
           shadow-lg
-          ${isCharacterAnimating && isCorrect ? actionData.animation : ''}
+          ${isCorrect && isCharacterAnimating ? actionData.animation : ''}
+          ${action === 'spinning' ? actionData.animation : ''} // Always spin for spinning character
+          ${action === 'jumping' ? 'animate-jump' : ''} // Always jump for jumping character
         `}>
           {/* Character Face */}
           <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
             <div className="flex space-x-4 mb-4">
-              <div className="w-6 h-6 rounded-full bg-white"></div>
-              <div className="w-6 h-6 rounded-full bg-white"></div>
+              <div className="w-4 h-4 rounded-full bg-white"></div>
+              <div className="w-4 h-4 rounded-full bg-white"></div>
             </div>
-            <div className="w-12 h-3 bg-white rounded-full"></div>
+            <div className="w-8 h-2 bg-white rounded-full"></div>
           </div>
 
           {/* Running Legs */}
@@ -162,31 +168,22 @@ export function ICanMoveGame({ isDarkMode, isVibrant, onExit, language }: ICanMo
               <div className="h-2 bg-black/20 rounded-full animate-jump-shadow"></div>
             </div>
           )}
+
+          {/* Action Label */}
+          {isCorrect && showActionLabel && (
+            <div className={`
+              absolute -top-8 left-1/2 transform -translate-x-1/2
+              bg-black/50 backdrop-blur-sm
+              text-white text-center px-4 py-2 rounded-full
+              font-bold text-lg
+              transition-opacity duration-300
+              flex items-center gap-2
+            `}>
+              <span>{actionData.icon}</span>
+              <span>{actionData.text[language as keyof typeof actionData.text]}</span>
+            </div>
+          )}
         </div>
-
-        {/* Action Label */}
-        {isCorrect && showActionLabel && (
-          <div className={`
-            absolute -top-8 left-1/2 transform -translate-x-1/2
-            bg-black/50 backdrop-blur-sm
-            text-white text-center px-4 py-2 rounded-full
-            font-bold text-lg
-            transition-opacity duration-300
-            flex items-center gap-2
-          `}>
-            <span>{actionData.icon}</span>
-            <span>{actionData.text[language as keyof typeof actionData.text]}</span>
-          </div>
-        )}
-
-        {/* Success Checkmark */}
-        {isCorrect && showActionLabel && (
-          <div className="absolute -top-2 -right-2 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-            <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-        )}
       </button>
     );
   };
@@ -268,6 +265,7 @@ export function ICanMoveGame({ isDarkMode, isVibrant, onExit, language }: ICanMo
                   setTimeout(() => {
                     setIsStarted(true);
                     setIsTransitioning(false);
+                    setPromptReady(true);
                   }, 300);
                 }}
                 className={`
@@ -299,19 +297,22 @@ export function ICanMoveGame({ isDarkMode, isVibrant, onExit, language }: ICanMo
                 <span className="text-2xl">{actions[currentAction].icon}</span>
               </div>
 
-              <div className={`
-                grid grid-cols-3 gap-8
-                transition-opacity duration-300
-                ${isTransitioning ? 'opacity-0' : 'opacity-100'}
-              `}>
-                {actions.map((action, index) => (
-                  <Character
-                    key={index}
-                    action={action.id}
-                    onClick={() => handleCharacterClick(action.id, index)}
-                    index={index}
-                  />
-                ))}
+              {/* Centered Character Grid with Extra Space for Animations */}
+              <div className="flex justify-center items-center min-h-[500px] pt-12 md:pt-16">
+                <div className={`
+                  grid grid-cols-3 gap-8
+                  transition-opacity duration-300
+                  ${isTransitioning ? 'opacity-0' : 'opacity-100'}
+                `}>
+                  {actions.map((action, index) => (
+                    <Character
+                      key={index}
+                      action={action.id}
+                      onClick={() => handleCharacterClick(action.id, index)}
+                      index={index}
+                    />
+                  ))}
+                </div>
               </div>
             </>
           )}

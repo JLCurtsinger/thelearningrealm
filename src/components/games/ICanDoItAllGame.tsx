@@ -56,8 +56,9 @@ export function ICanDoItAllGame({ isDarkMode, isVibrant, onExit, language }: ICa
   const [showActionLabel, setShowActionLabel] = useState(false);
   const [isError, setIsError] = useState(false);
   const [gameComplete, setGameComplete] = useState(false);
-  const [redirectTimer, setRedirectTimer] = useState<number | null>(null);
+  const [promptReady, setPromptReady] = useState(false);
 
+  // Initialize game
   useEffect(() => {
     if (soundEnabled && !isStarted) {
       speakText(
@@ -93,33 +94,28 @@ export function ICanDoItAllGame({ isDarkMode, isVibrant, onExit, language }: ICa
         speakText(victoryMessage, language === 'es' ? 'es-ES' : 'en-US');
       }
 
-      // Start redirect countdown
-      let countdown = 5;
-      const timer = window.setInterval(() => {
-        countdown--;
-        setRedirectTimer(countdown);
-        
-        if (countdown <= 0) {
-          clearInterval(timer);
-          onExit(); // Redirect back to learning path
-        }
-      }, 1000);
-
+      // Return to learning path after delay
+      setTimeout(() => {
+        onExit();
+      }, 3000);
     } catch (error) {
       console.error('Error updating progress:', error);
       // Still exit after delay even if progress update fails
       setTimeout(() => {
         onExit();
-      }, 5000);
+      }, 3000);
     }
   };
 
   const handleCharacterClick = (action: string, index: number) => {
-    if (gameComplete) return;
+    if (gameComplete || !promptReady) return;
     setSelectedCharacter(index);
 
-    if (action === actions[currentAction].id) {
+    const targetAction = actions[currentAction];
+    if (action === targetAction.id) {
       playGameSound('success');
+      setScore(score + 1);
+      setShowCelebration(true);
       setIsCharacterAnimating(true);
       setShowActionLabel(true);
       
@@ -129,14 +125,10 @@ export function ICanDoItAllGame({ isDarkMode, isVibrant, onExit, language }: ICa
           : 'Great job!';
         speakText(celebration, language === 'es' ? 'es-ES' : 'en-US');
       }
-
-      setScore(score + 1);
-      setShowCelebration(true);
       
       setTimeout(() => {
         setIsCharacterAnimating(false);
         setShowCelebration(false);
-        setShowActionLabel(false);
         if (currentAction < actions.length - 1) {
           setIsTransitioning(true);
           setTimeout(() => {
@@ -175,13 +167,14 @@ export function ICanDoItAllGame({ isDarkMode, isVibrant, onExit, language }: ICa
     return (
       <button
         onClick={onClick}
-        disabled={gameComplete || !isStarted}
+        disabled={gameComplete || !promptReady}
         className={`
           relative w-48 h-48
           transform transition-all duration-300
           hover:scale-105 focus:outline-none
           ${isSelected && isError ? 'animate-shake' : ''}
           disabled:opacity-50
+          ${action === 'jumping' ? 'mt-16' : ''} // Extra space for jumping animation
         `}
       >
         {/* Character Body */}
@@ -196,37 +189,16 @@ export function ICanDoItAllGame({ isDarkMode, isVibrant, onExit, language }: ICa
           rounded-full
           shadow-lg
           ${isCorrect && isCharacterAnimating ? actionData.animation : ''}
+          ${action === 'spinning' ? actionData.animation : ''} // Always spin for spinning character
+          ${action === 'jumping' ? 'animate-jump' : ''} // Always jump for jumping character
         `}>
           {/* Character Face */}
           <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
-            {/* Eyes */}
             <div className="flex space-x-4 mb-4">
-              <div className={`
-                w-6 h-6 rounded-full bg-white
-                ${isCorrect && isCharacterAnimating ? 'scale-75' : ''}
-                transition-transform duration-200
-              `}>
-                <div className="w-3 h-3 bg-black rounded-full mt-1 ml-1" />
-              </div>
-              <div className={`
-                w-6 h-6 rounded-full bg-white
-                ${isCorrect && isCharacterAnimating ? 'scale-75' : ''}
-                transition-transform duration-200
-              `}>
-                <div className="w-3 h-3 bg-black rounded-full mt-1 ml-1" />
-              </div>
+              <div className="w-4 h-4 rounded-full bg-white"></div>
+              <div className="w-4 h-4 rounded-full bg-white"></div>
             </div>
-            {/* Mouth */}
-            <div className={`
-              w-12 h-6 bg-white rounded-full overflow-hidden
-              ${isCorrect && isCharacterAnimating ? 'scale-x-110 scale-y-75' : ''}
-              transition-transform duration-200
-              relative
-            `}>
-              {isCorrect && isCharacterAnimating && (
-                <div className="absolute inset-0 bg-pink-200 opacity-50" />
-              )}
-            </div>
+            <div className="w-8 h-2 bg-white rounded-full"></div>
           </div>
 
           {/* Running Legs */}
@@ -352,6 +324,7 @@ export function ICanDoItAllGame({ isDarkMode, isVibrant, onExit, language }: ICa
                   setTimeout(() => {
                     setIsStarted(true);
                     setIsTransitioning(false);
+                    setPromptReady(true);
                   }, 300);
                 }}
                 className={`
@@ -383,25 +356,28 @@ export function ICanDoItAllGame({ isDarkMode, isVibrant, onExit, language }: ICa
                 <span className="text-2xl">{actions[currentAction].icon}</span>
               </div>
 
-              <div className={`
-                grid grid-cols-2 gap-8
-                transition-opacity duration-300
-                ${isTransitioning ? 'opacity-0' : 'opacity-100'}
-              `}>
-                {actions.map((action, index) => (
-                  <Character
-                    key={index}
-                    action={action.id}
-                    onClick={() => handleCharacterClick(action.id, index)}
-                    index={index}
-                  />
-                ))}
+              {/* Centered Character Grid with Extra Space for Animations */}
+              <div className="flex justify-center items-center min-h-[500px] pt-12 md:pt-16">
+                <div className={`
+                  grid grid-cols-2 gap-8
+                  transition-opacity duration-300
+                  ${isTransitioning ? 'opacity-0' : 'opacity-100'}
+                `}>
+                  {actions.map((action, index) => (
+                    <Character
+                      key={index}
+                      action={action.id}
+                      onClick={() => handleCharacterClick(action.id, index)}
+                      index={index}
+                    />
+                  ))}
+                </div>
               </div>
             </>
           )}
 
           {/* Celebration Overlay */}
-          {(showCelebration || gameComplete) && (
+          {showCelebration && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-3xl">
               <div className="text-center">
                 <h3 className="text-4xl font-bold text-white mb-4">
@@ -432,35 +408,11 @@ export function ICanDoItAllGame({ isDarkMode, isVibrant, onExit, language }: ICa
                   ))}
                 </div>
                 {gameComplete && (
-                  <>
-                    <p className="text-white text-xl mt-4">
-                      {language === 'es'
-                        ? `¡Ganaste ${score * 10} puntos!`
-                        : `You earned ${score * 10} points!`}
-                    </p>
-                    {redirectTimer !== null && (
-                      <p className="text-white text-lg mt-2">
-                        {language === 'es'
-                          ? `Volviendo al menú en ${redirectTimer}...`
-                          : `Returning to menu in ${redirectTimer}...`}
-                      </p>
-                    )}
-                    <button
-                      onClick={onExit}
-                      className={`
-                        mt-6 px-6 py-3 rounded-xl
-                        flex items-center gap-2 mx-auto
-                        font-bold text-white
-                        transform hover:scale-105
-                        transition-all duration-300
-                        ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100 text-gray-900'}
-                        shadow-lg
-                      `}
-                    >
-                      <Home className="w-5 h-5" />
-                      <span>{language === 'es' ? 'Volver al Menú' : 'Return to Menu'}</span>
-                    </button>
-                  </>
+                  <p className="text-white text-xl mt-4">
+                    {language === 'es'
+                      ? `¡Ganaste ${score * 10} puntos!`
+                      : `You earned ${score * 10} points!`}
+                  </p>
                 )}
               </div>
             </div>
