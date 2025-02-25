@@ -175,7 +175,7 @@ export function ICanDoItAllGame({ isDarkMode, isVibrant, onExit, language }: ICa
     return (
       <button
         onClick={onClick}
-        disabled={showCelebration || gameComplete}
+        disabled={gameComplete || !isStarted}
         className={`
           relative w-48 h-48
           transform transition-all duration-300
@@ -195,15 +195,38 @@ export function ICanDoItAllGame({ isDarkMode, isVibrant, onExit, language }: ICa
           }
           rounded-full
           shadow-lg
-          ${isCharacterAnimating && isCorrect ? actionData.animation : ''}
+          ${isCorrect && isCharacterAnimating ? actionData.animation : ''}
         `}>
           {/* Character Face */}
           <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
+            {/* Eyes */}
             <div className="flex space-x-4 mb-4">
-              <div className="w-6 h-6 rounded-full bg-white"></div>
-              <div className="w-6 h-6 rounded-full bg-white"></div>
+              <div className={`
+                w-6 h-6 rounded-full bg-white
+                ${isCorrect && isCharacterAnimating ? 'scale-75' : ''}
+                transition-transform duration-200
+              `}>
+                <div className="w-3 h-3 bg-black rounded-full mt-1 ml-1" />
+              </div>
+              <div className={`
+                w-6 h-6 rounded-full bg-white
+                ${isCorrect && isCharacterAnimating ? 'scale-75' : ''}
+                transition-transform duration-200
+              `}>
+                <div className="w-3 h-3 bg-black rounded-full mt-1 ml-1" />
+              </div>
             </div>
-            <div className="w-12 h-3 bg-white rounded-full"></div>
+            {/* Mouth */}
+            <div className={`
+              w-12 h-6 bg-white rounded-full overflow-hidden
+              ${isCorrect && isCharacterAnimating ? 'scale-x-110 scale-y-75' : ''}
+              transition-transform duration-200
+              relative
+            `}>
+              {isCorrect && isCharacterAnimating && (
+                <div className="absolute inset-0 bg-pink-200 opacity-50" />
+              )}
+            </div>
           </div>
 
           {/* Running Legs */}
@@ -232,31 +255,22 @@ export function ICanDoItAllGame({ isDarkMode, isVibrant, onExit, language }: ICa
               </div>
             </div>
           )}
+
+          {/* Action Label */}
+          {isCorrect && showActionLabel && (
+            <div className={`
+              absolute -top-8 left-1/2 transform -translate-x-1/2
+              bg-black/50 backdrop-blur-sm
+              text-white text-center px-4 py-2 rounded-full
+              font-bold text-lg
+              transition-opacity duration-300
+              flex items-center gap-2
+            `}>
+              <span>{actionData.icon}</span>
+              <span>{actionData.text[language as keyof typeof actionData.text]}</span>
+            </div>
+          )}
         </div>
-
-        {/* Action Label */}
-        {isCorrect && showActionLabel && (
-          <div className={`
-            absolute -top-8 left-1/2 transform -translate-x-1/2
-            bg-black/50 backdrop-blur-sm
-            text-white text-center px-4 py-2 rounded-full
-            font-bold text-lg
-            transition-opacity duration-300
-            flex items-center gap-2
-          `}>
-            <span>{actionData.icon}</span>
-            <span>{actionData.text[language as keyof typeof actionData.text]}</span>
-          </div>
-        )}
-
-        {/* Success Checkmark */}
-        {isCorrect && showActionLabel && (
-          <div className="absolute -top-2 -right-2 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-            <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-        )}
       </button>
     );
   };
