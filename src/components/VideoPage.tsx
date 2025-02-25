@@ -20,7 +20,7 @@ const YOUTUBE_SHORTS = [
   { id: 'yY-mdm_vUsU', title: 'Transportation Vehicles' }
 ];
 
-const TRANSLATION_API_URL = 'https://lesson-link-translator.herokuapp.com/translate-video-url';
+const TRANSLATION_API_URL = 'https://lessonlink-181622647374.us-south1.run.app/translate-video-url';
 
 export function VideoPage({ isDarkMode, isVibrant, t }: VideoPageProps) {
   const [selectedVideo, setSelectedVideo] = useState('');
@@ -44,6 +44,7 @@ export function VideoPage({ isDarkMode, isVibrant, t }: VideoPageProps) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Origin': 'https://lessonlink.org'
         },
         body: JSON.stringify({
           video_url: getYouTubeUrl(videoId)
