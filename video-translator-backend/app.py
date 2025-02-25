@@ -10,8 +10,8 @@ CORS(app,
      resources={r"/*": {
          "origins": ["https://lessonlink.org"],
          "methods": ["GET", "POST", "OPTIONS"],
-         "allow_headers": ["Content-Type", "Authorization"],
-         "expose_headers": ["Content-Type", "Content-Disposition"],
+         "allow_headers": ["*"],
+         "expose_headers": ["Content-Type", "Content-Disposition", "Content-Length"],
          "supports_credentials": True,
          "max_age": 600  # Cache preflight requests for 10 minutes
      }})
@@ -84,4 +84,4 @@ def translate_video_url():
             os.remove(output_video)
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=5000, threaded=True)

@@ -81,6 +81,117 @@
     }
   }
 
+  /* Running animation */
+  @keyframes run {
+    0%, 100% {
+      transform: translateX(0) rotate(0);
+    }
+    25% {
+      transform: translateX(10px) rotate(5deg);
+    }
+    75% {
+      transform: translateX(-10px) rotate(-5deg);
+    }
+  }
+
+  /* Running legs animation */
+  @keyframes run-legs {
+    0%, 100% {
+      transform: translateY(0) rotate(-15deg);
+    }
+    50% {
+      transform: translateY(-10px) rotate(15deg);
+    }
+  }
+
+  /* Jumping animation */
+  @keyframes jump {
+    0%, 100% {
+      transform: translateY(0) scale(1);
+    }
+    50% {
+      transform: translateY(-30px) scale(0.95);
+    }
+  }
+
+  /* Jump shadow animation */
+  @keyframes jump-shadow {
+    0%, 100% {
+      transform: scale(1);
+      opacity: 0.3;
+    }
+    50% {
+      transform: scale(0.5);
+      opacity: 0.1;
+    }
+  }
+
+  /* Spinning animation */
+  @keyframes spin-character {
+    0% {
+      transform: rotate(0deg) scale(1);
+    }
+    50% {
+      transform: rotate(180deg) scale(0.95);
+    }
+    100% {
+      transform: rotate(360deg) scale(1);
+    }
+  }
+
+  /* Stomping animation */
+  @keyframes stomp {
+    0%, 100% {
+      transform: translateY(0) scale(1);
+    }
+    50% {
+      transform: translateY(4px) scale(1.05);
+    }
+  }
+
+  /* Stomping feet animation */
+  @keyframes stomp-feet {
+    0%, 100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(8px);
+    }
+  }
+
+  /* Waving animation */
+  @keyframes wave {
+    0%, 100% {
+      transform: rotate(0deg);
+    }
+    25% {
+      transform: rotate(20deg);
+    }
+    75% {
+      transform: rotate(-15deg);
+    }
+  }
+
+  /* Clapping animation */
+  @keyframes clap {
+    0%, 100% {
+      transform: translateX(0) scale(1);
+    }
+    50% {
+      transform: translateX(-5px) scale(1.1);
+    }
+  }
+
+  /* Clap hands animation */
+  @keyframes clap-hands {
+    0%, 100% {
+      transform: rotate(0deg) translateX(0);
+    }
+    50% {
+      transform: rotate(-10deg) translateX(-5px);
+    }
+  }
+
   /* Apply animations */
   .animate-float {
     animation: float 6s ease-in-out infinite;
@@ -92,5 +203,46 @@
 
   .animate-spin-slow {
     animation: spin-slow 8s linear infinite;
+  }
+
+  .animate-run {
+    animation: run 0.5s ease-in-out infinite;
+  }
+
+  .animate-run-legs {
+    animation: run-legs 0.5s ease-in-out infinite;
+  }
+
+  .animate-jump {
+    animation: jump 0.5s ease-in-out infinite;
+  }
+
+  .animate-jump-shadow {
+    animation: jump-shadow 0.5s ease-in-out infinite;
+  }
+
+  .animate-spin-character {
+    animation: spin-character 1s ease-in-out infinite;
+  }
+
+  .animate-stomp {
+    animation: stomp 0.5s ease-in-out infinite;
+  }
+
+  .animate-stomp-feet {
+    animation: stomp-feet 0.5s ease-in-out infinite;
+  }
+
+  .animate-wave {
+    animation: wave 1s ease-in-out infinite;
+    transform-origin: 70% 70%; /* Adjust wave origin point */
+  }
+
+  .animate-clap {
+    animation: clap 0.5s ease-in-out infinite;
+  }
+
+  .animate-clap-hands {
+    animation: clap-hands 0.5s ease-in-out infinite;
   }
 }

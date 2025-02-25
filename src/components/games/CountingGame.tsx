@@ -11,31 +11,49 @@ interface CountingGameProps {
   language: string;
 }
 
-// Shape data with translations and SVG paths
+// Game items with reliable Unsplash images and translations
 const items = [
   {
     id: 'apple',
-    image: 'https://images.unsplash.com/photo-1579613832125-5d34a13ffe2a?auto=format&fit=crop&w=150&h=150',
+    image: 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?auto=format&fit=crop&w=150&h=150',
     name: { en: 'apple', es: 'manzana' },
-    prompt: { en: 'How many apples do you see?', es: '¿Cuántas manzanas ves?' }
+    prompt: { en: 'How many apples do you see?', es: '¿Cuántas manzanas ves?' },
+    color: 'from-red-400 to-red-600'
   },
   {
     id: 'star',
     image: 'https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=150&h=150',
     name: { en: 'star', es: 'estrella' },
-    prompt: { en: 'How many stars do you see?', es: '¿Cuántas estrellas ves?' }
+    prompt: { en: 'How many stars do you see?', es: '¿Cuántas estrellas ves?' },
+    color: 'from-yellow-400 to-yellow-600'
   },
   {
     id: 'flower',
     image: 'https://images.unsplash.com/photo-1490750967868-88aa4486c946?auto=format&fit=crop&w=150&h=150',
     name: { en: 'flower', es: 'flor' },
-    prompt: { en: 'How many flowers do you see?', es: '¿Cuántas flores ves?' }
+    prompt: { en: 'How many flowers do you see?', es: '¿Cuántas flores ves?' },
+    color: 'from-pink-400 to-pink-600'
   },
   {
-    id: 'balloon',
-    image: 'https://images.unsplash.com/photo-1527529482837-4698179dc6ce?auto=format&fit=crop&w=150&h=150',
-    name: { en: 'balloon', es: 'globo' },
-    prompt: { en: 'How many balloons do you see?', es: '¿Cuántos globos ves?' }
+    id: 'toy',
+    image: 'https://images.unsplash.com/photo-1558877385-81a1c7e67d72?auto=format&fit=crop&w=150&h=150',
+    name: { en: 'toy', es: 'juguete' },
+    prompt: { en: 'How many toys do you see?', es: '¿Cuántos juguetes ves?' },
+    color: 'from-blue-400 to-blue-600'
+  },
+  {
+    id: 'cookie',
+    image: 'https://images.unsplash.com/photo-1499636136210-6f4ee915583e?auto=format&fit=crop&w=150&h=150',
+    name: { en: 'cookie', es: 'galleta' },
+    prompt: { en: 'How many cookies do you see?', es: '¿Cuántas galletas ves?' },
+    color: 'from-amber-400 to-amber-600'
+  },
+  {
+    id: 'butterfly',
+    image: 'https://images.unsplash.com/photo-1559722746-c8c34c4c753f?auto=format&fit=crop&w=150&h=150',
+    name: { en: 'butterfly', es: 'mariposa' },
+    prompt: { en: 'How many butterflies do you see?', es: '¿Cuántas mariposas ves?' },
+    color: 'from-purple-400 to-purple-600'
   }
 ];
 
@@ -56,23 +74,26 @@ export function CountingGame({ isDarkMode, isVibrant, onExit, language }: Counti
   const [showItemLabel, setShowItemLabel] = useState(false);
   const [gameComplete, setGameComplete] = useState(false);
   const [redirectTimer, setRedirectTimer] = useState<number | null>(null);
+  const [usedItems, setUsedItems] = useState<number[]>([]);
+  const [exitTriggered, setExitTriggered] = useState(false);
 
   // Initialize game
   useEffect(() => {
-    generateNewRound(0);
+    generateNewRound();
   }, []);
 
   // Handle game completion
   const handleGameCompletion = async () => {
-    if (!user) return;
+    if (!user || exitTriggered) return;
 
     setGameComplete(true);
     playGameSound('success');
+    setExitTriggered(true);
 
     try {
-      // Update reward points
+      // Update reward points (10 points per correct count)
       await updateProgressData(user.uid, {
-        rewardPoints: score * 10 // 10 points per correct count
+        rewardPoints: score * 10
       });
 
       // Mark lesson as completed
@@ -107,11 +128,36 @@ export function CountingGame({ isDarkMode, isVibrant, onExit, language }: Counti
     }
   };
 
+  // Get next available item that hasn't been used recently
+  const getNextItem = () => {
+    const availableItems = items
+      .map((_, index) => index)
+      .filter(index => !usedItems.includes(index));
+
+    // If all items have been used, reset the used items list
+    if (availableItems.length === 0) {
+      setUsedItems([]);
+      return Math.floor(Math.random() * items.length);
+    }
+
+    const randomIndex = Math.floor(Math.random() * availableItems.length);
+    const nextItem = availableItems[randomIndex];
+    
+    // Add to used items list
+    setUsedItems(prev => [...prev, nextItem]);
+    
+    return nextItem;
+  };
+
   // Generate new round with synchronized items and prompts
-  const generateNewRound = (itemIndex: number) => {
+  const generateNewRound = () => {
     setIsTransitioning(true);
     setShowItemLabel(false);
     setSelectedOption(null);
+    
+    // Get next unused item
+    const nextItem = getNextItem();
+    setCurrentItem(nextItem);
     
     // Generate random count (1-5)
     const count = Math.floor(Math.random() * 5) + 1;
@@ -132,7 +178,7 @@ export function CountingGame({ isDarkMode, isVibrant, onExit, language }: Counti
 
     // Speak the prompt for the current item
     if (soundEnabled) {
-      const prompt = items[itemIndex].prompt[language as keyof typeof items[0]['prompt']];
+      const prompt = items[nextItem].prompt[language as keyof typeof items[0]['prompt']];
       speakText(prompt, language === 'es' ? 'es-ES' : 'en-US');
     }
 
@@ -164,9 +210,7 @@ export function CountingGame({ isDarkMode, isVibrant, onExit, language }: Counti
         setShowCelebration(false);
         if (round < totalRounds) {
           setRound(prev => prev + 1);
-          const nextItem = (currentItem + 1) % items.length;
-          setCurrentItem(nextItem);
-          generateNewRound(nextItem);
+          generateNewRound();
         } else {
           handleGameCompletion();
         }
@@ -189,13 +233,21 @@ export function CountingGame({ isDarkMode, isVibrant, onExit, language }: Counti
     }
   };
 
+  // Handle early exit
+  const handleExit = () => {
+    if (!exitTriggered) {
+      setExitTriggered(true);
+      onExit();
+    }
+  };
+
   return (
     <div className="min-h-screen pt-20 pb-8 px-4">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <button
-            onClick={onExit}
+            onClick={handleExit}
             className={`
               p-2 rounded-full
               ${isDarkMode ? 'bg-gray-800' : 'bg-white'}
@@ -214,8 +266,8 @@ export function CountingGame({ isDarkMode, isVibrant, onExit, language }: Counti
               shadow-lg
             `}>
               {language === 'es'
-                ? `Pregunta ${round} de ${totalRounds}`
-                : `Question ${round} of ${totalRounds}`}
+                ? `Ronda ${round} de ${totalRounds}`
+                : `Round ${round} of ${totalRounds}`}
             </div>
 
             <div className={`
@@ -235,16 +287,6 @@ export function CountingGame({ isDarkMode, isVibrant, onExit, language }: Counti
           ${isDarkMode ? 'bg-gray-800' : 'bg-white'}
           shadow-xl
         `}>
-          {/* Prompt */}
-          <div className="text-center mb-8">
-            <h2 className={`
-              text-2xl font-bold font-comic
-              ${isDarkMode ? 'text-white' : 'text-gray-900'}
-            `}>
-              {items[currentItem].prompt[language as keyof typeof items[0]['prompt']]}
-            </h2>
-          </div>
-
           {/* Items Grid */}
           <div className={`
             grid grid-cols-3 gap-4 mb-8
@@ -259,12 +301,18 @@ export function CountingGame({ isDarkMode, isVibrant, onExit, language }: Counti
                   transform transition-all duration-300
                   ${isItemAnimating ? 'animate-bounce' : 'hover:scale-105'}
                   shadow-lg
+                  relative
                 `}
               >
                 <img
                   src={items[currentItem].image}
                   alt={items[currentItem].name[language as keyof typeof items[0]['name']]}
                   className="w-full h-full object-cover"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.onerror = null;
+                    target.src = "https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?auto=format&fit=crop&w=150&h=150";
+                  }}
                 />
               </div>
             ))}
@@ -283,7 +331,7 @@ export function CountingGame({ isDarkMode, isVibrant, onExit, language }: Counti
                   text-4xl font-bold font-comic text-white
                   transform transition-all duration-300
                   ${isVibrant
-                    ? 'bg-gradient-to-r from-purple-500 via-pink-500 to-red-500'
+                    ? `bg-gradient-to-r ${items[currentItem].color}`
                     : isDarkMode
                       ? 'bg-gray-700'
                       : 'bg-purple-600'
@@ -308,7 +356,7 @@ export function CountingGame({ isDarkMode, isVibrant, onExit, language }: Counti
           {/* Controls */}
           <div className="flex justify-center space-x-4 mt-8">
             <button
-              onClick={() => generateNewRound(currentItem)}
+              onClick={() => generateNewRound()}
               disabled={gameComplete}
               className={`
                 p-3 rounded-full
@@ -380,7 +428,7 @@ export function CountingGame({ isDarkMode, isVibrant, onExit, language }: Counti
                       </p>
                     )}
                     <button
-                      onClick={onExit}
+                      onClick={handleExit}
                       className={`
                         mt-6 px-6 py-3 rounded-xl
                         flex items-center gap-2 mx-auto
