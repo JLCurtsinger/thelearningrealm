@@ -20,8 +20,8 @@ const clothing = [
     color: { en: 'blue', es: 'azul' },
     responses: {
       nameCorrect: {
-        en: "That's right! What color is the shirt?",
-        es: "¡Correcto! ¿De qué color es la camisa?"
+        en: "That's right! What color is the picture on the shirt?",
+        es: "¡Correcto! ¿De qué color es el foto en la camisa?"
       },
       colorCorrect: {
         en: "Perfect! It's a blue shirt!",
@@ -36,8 +36,8 @@ const clothing = [
     color: { en: 'black', es: 'negros' },
     responses: {
       nameCorrect: {
-        en: "Yes! What color are the pants?",
-        es: "¡Sí! ¿De qué color son los pantalones?"
+        en: "Yes! What color are the pants on top?",
+        es: "¡Sí! ¿De qué color son los pantalones de arriba?"
       },
       colorCorrect: {
         en: "Great! They're black pants!",
@@ -55,12 +55,12 @@ const clothing = [
     color: { en: 'red', es: 'rojos' },
     responses: {
       nameCorrect: {
-        en: "Correct! What color are the shoes?",
-        es: "¡Correcto! ¿De qué color son los zapatos?"
+        en: "Correct! What color is the shoe?",
+        es: "¡Correcto! ¿De qué color son el zapato?"
       },
       colorCorrect: {
-        en: "Excellent! They're red shoes!",
-        es: "¡Excelente! ¡Son zapatos rojos!"
+        en: "Excellent! It's a red shoe!",
+        es: "¡Excelente! ¡Es un zapato rojo!"
       }
     }
   }
@@ -93,7 +93,7 @@ export function WhatAmIWearingGame({ isDarkMode, isVibrant, onExit, language }: 
     if (soundEnabled) {
       const initialPrompt = language === 'es' 
         ? "¿Qué prenda de vestir es esta?"
-        : "What clothing item is this?";
+        : "What type of clothing item is this?";
       setMessages([{ text: initialPrompt, isUser: false }]);
       speakText(initialPrompt, language === 'es' ? 'es-ES' : 'en-US');
     }
@@ -223,7 +223,7 @@ export function WhatAmIWearingGame({ isDarkMode, isVibrant, onExit, language }: 
                 setShowItemLabel(false);
                 const newPrompt = language === 'es' 
                   ? "¿Qué prenda de vestir es esta?"
-                  : "What clothing item is this?";
+                  : "What type of clothing item is this?";
                 setMessages([{ text: newPrompt, isUser: false }]);
                 speakText(newPrompt, language === 'es' ? 'es-ES' : 'en-US');
                 setIsTransitioning(false);

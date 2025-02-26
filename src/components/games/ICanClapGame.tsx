@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Volume2, Star, Sparkles, Play, XCircle } from 'lucide-react';
+import { Volume2, Star, Sparkles, Play, Home } from 'lucide-react';
 import { useGameAudio } from './GameAudioContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { updateProgressData, addCompletedLesson } from '../../utils/progressStorage';
@@ -25,13 +25,14 @@ export function ICanClapGame({ isDarkMode, isVibrant, onExit, language }: ICanCl
   const [isCharacterAnimating, setIsCharacterAnimating] = useState(false);
   const [showActionLabel, setShowActionLabel] = useState(false);
   const [gameComplete, setGameComplete] = useState(false);
+  const [redirectTimer, setRedirectTimer] = useState<number | null>(null);
 
   useEffect(() => {
     if (soundEnabled && !isStarted) {
       speakText(
         language === 'es' 
-          ? '¿Puedes aplaudir conmigo?' 
-          : 'Can you clap your hands?',
+          ? "¿Puedes aplaudir conmigo?" 
+          : "Can you clap your hands?",
         language === 'es' ? 'es-ES' : 'en-US'
       );
     }
@@ -61,16 +62,26 @@ export function ICanClapGame({ isDarkMode, isVibrant, onExit, language }: ICanCl
         speakText(victoryMessage, language === 'es' ? 'es-ES' : 'en-US');
       }
 
-      // Return to learning path after delay
-      setTimeout(() => {
-        onExit();
-      }, 3000);
+      // Start redirect countdown
+      let countdown = 5;
+      const timer = window.setInterval(() => {
+        countdown--;
+        setRedirectTimer(countdown);
+        
+        if (countdown <= 0) {
+          clearInterval(timer);
+          onExit();
+          window.location.reload(); // Force refresh to repopulate available games
+        }
+      }, 1000);
+
     } catch (error) {
       console.error('Error updating progress:', error);
       // Still exit after delay even if progress update fails
       setTimeout(() => {
         onExit();
-      }, 3000);
+        window.location.reload(); // Force refresh even after error
+      }, 5000);
     }
   };
 
@@ -82,7 +93,7 @@ export function ICanClapGame({ isDarkMode, isVibrant, onExit, language }: ICanCl
       playGameSound('success');
       setIsCharacterAnimating(true);
       setShowActionLabel(true);
-      
+
       if (soundEnabled) {
         const celebration = language === 'es' 
           ? '¡Excelente trabajo!' 
@@ -96,13 +107,10 @@ export function ICanClapGame({ isDarkMode, isVibrant, onExit, language }: ICanCl
       setTimeout(() => {
         setIsCharacterAnimating(false);
         setShowCelebration(false);
+        setShowActionLabel(false);
         if (round < totalRounds) {
-          setIsTransitioning(true);
-          setTimeout(() => {
-            setRound(prev => prev + 1);
-            setSelectedCharacter(null);
-            setIsTransitioning(false);
-          }, 300);
+          setRound(prev => prev + 1);
+          setSelectedCharacter(null);
         } else {
           handleGameCompletion();
         }
@@ -125,7 +133,7 @@ export function ICanClapGame({ isDarkMode, isVibrant, onExit, language }: ICanCl
     }
   };
 
-  // Enhanced Character component with improved animations and design
+  // Animated character component with improved clapping animation
   const Character = ({ isClapping = false, onClick, index }: { isClapping?: boolean; onClick?: () => void; index: number }) => (
     <button
       onClick={onClick}
@@ -150,60 +158,27 @@ export function ICanClapGame({ isDarkMode, isVibrant, onExit, language }: ICanCl
         rounded-full
         shadow-lg
       `}>
-        {/* Character Face */}
+        {/* Character face */}
         <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
-          {/* Eyes - More expressive based on state */}
           <div className="flex space-x-4 mb-4">
-            <div className={`
-              w-6 h-6 rounded-full bg-white
-              ${isClapping && isCharacterAnimating ? 'scale-75' : ''}
-              transition-transform duration-200
-            `}>
-              <div className="w-3 h-3 bg-black rounded-full mt-1 ml-1" />
-            </div>
-            <div className={`
-              w-6 h-6 rounded-full bg-white
-              ${isClapping && isCharacterAnimating ? 'scale-75' : ''}
-              transition-transform duration-200
-            `}>
-              <div className="w-3 h-3 bg-black rounded-full mt-1 ml-1" />
-            </div>
+            <div className="w-4 h-4 rounded-full bg-white"></div>
+            <div className="w-4 h-4 rounded-full bg-white"></div>
           </div>
-          {/* Mouth - Smiles when clapping */}
-          <div className={`
-            w-12 h-6 bg-white rounded-full overflow-hidden
-            ${isClapping && isCharacterAnimating ? 'scale-x-110 scale-y-75' : ''}
-            transition-transform duration-200
-            relative
-          `}>
-            {isClapping && (
-              <div className="absolute inset-0 bg-pink-200 opacity-50" />
-            )}
-          </div>
+          <div className="w-8 h-2 bg-white rounded-full"></div>
         </div>
 
-        {/* Clapping Hands */}
+        {/* Clapping Hands - Now always animated when isClapping is true */}
         {isClapping && (
           <div className="absolute -left-8 top-1/2 -translate-y-1/2">
             <div className="relative">
               {/* Left Hand */}
-              <div className={`
-                absolute w-8 h-8 bg-yellow-400 rounded-full
-                ${isCharacterAnimating ? 'animate-[clap_0.5s_ease-in-out_infinite]' : ''}
-                origin-right
-              `} />
+              <div className="absolute w-8 h-8 bg-yellow-400 rounded-full animate-[clap_0.5s_ease-in-out_infinite] origin-right" />
               {/* Right Hand */}
-              <div className={`
-                absolute w-8 h-8 bg-yellow-400 rounded-full left-8
-                ${isCharacterAnimating ? 'animate-[clap_0.5s_ease-in-out_infinite_reverse]' : ''}
-                origin-left
-              `} />
+              <div className="absolute w-8 h-8 bg-yellow-400 rounded-full left-8 animate-[clap_0.5s_ease-in-out_infinite_reverse] origin-left" />
               {/* Clap Effect */}
-              {isCharacterAnimating && (
-                <div className="absolute left-4 -top-4">
-                  <Sparkles className="w-6 h-6 text-yellow-200 animate-spin" />
-                </div>
-              )}
+              <div className="absolute left-4 -top-4">
+                <Sparkles className="w-6 h-6 text-yellow-200 animate-spin" />
+              </div>
             </div>
           </div>
         )}
@@ -351,7 +326,7 @@ export function ICanClapGame({ isDarkMode, isVibrant, onExit, language }: ICanCl
           )}
 
           {/* Celebration Overlay */}
-          {showCelebration && (
+          {(showCelebration || gameComplete) && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-3xl">
               <div className="text-center">
                 <h3 className="text-4xl font-bold text-white mb-4">
@@ -382,24 +357,36 @@ export function ICanClapGame({ isDarkMode, isVibrant, onExit, language }: ICanCl
                   ))}
                 </div>
                 {gameComplete && (
-                  <p className="text-white text-xl mt-4">
-                    {language === 'es'
-                      ? `¡Ganaste ${score * 10} puntos!`
-                      : `You earned ${score * 10} points!`}
-                  </p>
+                  <>
+                    <p className="text-white text-xl mt-4">
+                      {language === 'es'
+                        ? `¡Ganaste ${score * 10} puntos!`
+                        : `You earned ${score * 10} points!`}
+                    </p>
+                    {redirectTimer !== null && (
+                      <p className="text-white text-lg mt-2">
+                        {language === 'es'
+                          ? `Volviendo al menú en ${redirectTimer}...`
+                          : `Returning to menu in ${redirectTimer}...`}
+                      </p>
+                    )}
+                    <button
+                      onClick={onExit}
+                      className={`
+                        mt-6 px-6 py-3 rounded-xl
+                        flex items-center gap-2 mx-auto
+                        font-bold text-white
+                        transform hover:scale-105
+                        transition-all duration-300
+                        ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100 text-gray-900'}
+                        shadow-lg
+                      `}
+                    >
+                      <Home className="w-5 h-5" />
+                      <span>{language === 'es' ? 'Volver al Menú' : 'Return to Menu'}</span>
+                    </button>
+                  </>
                 )}
-              </div>
-            </div>
-          )}
-
-          {/* Error Overlay */}
-          {showError && (
-            <div className="absolute inset-0 flex items-center justify-center bg-red-500/30 rounded-3xl">
-              <div className="text-center">
-                <XCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-                <h3 className="text-2xl font-bold text-white">
-                  {language === 'es' ? '¡Inténtalo de nuevo!' : 'Try again!'}
-                </h3>
               </div>
             </div>
           )}

@@ -11,61 +11,41 @@ interface EmotionMatchGameProps {
   language: string;
 }
 
-// Emotion data with translations and DiceBear configurations
+// Shape data with translations and SVG paths
 const emotions = [
   {
     id: 'happy',
+    path: 'M50 90a40 40 0 1 0 0-80 40 40 0 0 0 0 80z',
     name: { en: 'happy', es: 'feliz' },
     prompt: { en: 'Find the happy face!', es: '¡Encuentra la cara feliz!' },
-    config: {
-      eyes: 'happy',
-      mouth: 'smile',
-      backgroundColor: 'transparent'
-    },
     color: 'from-yellow-400 to-yellow-600'
   },
   {
     id: 'sad',
+    path: 'M10 10h80v80H10z',
     name: { en: 'sad', es: 'triste' },
     prompt: { en: 'Who looks sad?', es: '¿Quién parece triste?' },
-    config: {
-      eyes: 'cry',
-      mouth: 'frown',
-      backgroundColor: 'transparent'
-    },
     color: 'from-blue-400 to-blue-600'
   },
   {
     id: 'surprised',
+    path: 'M50 10L90 90H10z',
     name: { en: 'surprised', es: 'sorprendido' },
     prompt: { en: 'Find the surprised face!', es: '¡Encuentra la cara sorprendida!' },
-    config: {
-      eyes: 'wide',
-      mouth: 'open',
-      backgroundColor: 'transparent'
-    },
-    color: 'from-purple-400 to-purple-600'
+    color: 'from-yellow-400 to-yellow-600'
   },
   {
     id: 'sleepy',
+    path: 'M50 10l12 24 26 4-19 18 4 26-23-12-23 12 4-26-19-18 26-4z',
     name: { en: 'sleepy', es: 'soñoliento' },
     prompt: { en: 'Who looks sleepy?', es: '¿Quién parece soñoliento?' },
-    config: {
-      eyes: 'closed',
-      mouth: 'sleep',
-      backgroundColor: 'transparent'
-    },
-    color: 'from-green-400 to-green-600'
+    color: 'from-purple-400 to-purple-600'
   },
   {
     id: 'excited',
+    path: 'M50 90c30-20 40-38 40-48 0-22-40-22-40 0 0-22-40-22-40 0 0 10 10 28 40 48z',
     name: { en: 'excited', es: 'emocionado' },
     prompt: { en: 'Find the excited face!', es: '¡Encuentra la cara emocionada!' },
-    config: {
-      eyes: 'stars',
-      mouth: 'laugh',
-      backgroundColor: 'transparent'
-    },
     color: 'from-pink-400 to-pink-600'
   }
 ];
@@ -119,12 +99,14 @@ export function EmotionMatchGame({ isDarkMode, isVibrant, onExit, language }: Em
       // Return to learning path after delay
       setTimeout(() => {
         onExit();
+        window.location.reload(); // Force refresh to repopulate available games
       }, 3000);
     } catch (error) {
       console.error('Error updating progress:', error);
       // Still exit after delay even if progress update fails
       setTimeout(() => {
         onExit();
+        window.location.reload(); // Force refresh even after error
       }, 3000);
     }
   };
@@ -135,22 +117,21 @@ export function EmotionMatchGame({ isDarkMode, isVibrant, onExit, language }: Em
     setPromptReady(false);
     setShowEmotionLabel(false);
     setSelectedEmotion(null);
-    
-    // Get target emotion and ensure it's included in options
+
+    // Get target emotion
     const targetEmotion = emotions[emotionIndex];
-    
+
     // Get remaining emotions excluding the target emotion
-    const otherEmotions = emotions.filter(e => e.id !== targetEmotion.id);
-    
+    const remainingEmotions = emotions.filter(e => e.id !== targetEmotion.id);
+
     // Randomly select 2 other emotions
-    const selectedOtherEmotions = otherEmotions
-      .sort(() => Math.random() - 0.5)
-      .slice(0, 2);
-    
+    const shuffledEmotions = remainingEmotions.sort(() => Math.random() - 0.5);
+    const selectedOtherEmotions = shuffledEmotions.slice(0, 2);
+
     // Combine target emotion with random emotions and shuffle
     const allOptions = [targetEmotion, ...selectedOtherEmotions]
       .sort(() => Math.random() - 0.5);
-    
+
     setOptions(allOptions);
 
     // Ensure visual transition is complete before speaking prompt
@@ -213,18 +194,6 @@ export function EmotionMatchGame({ isDarkMode, isVibrant, onExit, language }: Em
         setSelectedEmotion(null);
       }, 500);
     }
-  };
-
-  // Generate DiceBear URL with configuration
-  const getDiceBearUrl = (emotion: typeof emotions[0]) => {
-    const { config } = emotion;
-    const params = new URLSearchParams({
-      seed: emotion.id,
-      eyes: config.eyes,
-      mouth: config.mouth,
-      backgroundColor: config.backgroundColor
-    });
-    return `https://api.dicebear.com/7.x/bottts/svg?${params.toString()}`;
   };
 
   return (
@@ -320,19 +289,15 @@ export function EmotionMatchGame({ isDarkMode, isVibrant, onExit, language }: Em
                   p-4
                 `}
               >
-                <img
-                  src={getDiceBearUrl(emotion)}
-                  alt={emotion.name[language as keyof typeof emotion.name]}
+                <svg
+                  viewBox="0 0 100 100"
                   className={`
                     w-full h-full text-white
                     ${emotion.id === emotions[currentEmotion].id && isEmotionAnimating ? 'animate-bounce' : ''}
                   `}
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.onerror = null;
-                    target.src = "https://api.dicebear.com/7.x/bottts/svg?seed=fallback";
-                  }}
-                />
+                >
+                  <path d={emotion.path} fill="currentColor" />
+                </svg>
 
                 {/* Emotion Label Overlay */}
                 {emotion.id === emotions[currentEmotion].id && showEmotionLabel && (

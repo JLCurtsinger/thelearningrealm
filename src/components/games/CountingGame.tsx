@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Star, Volume2, Sparkles, RefreshCw, Home } from 'lucide-react';
+import { ArrowLeft, Star, Volume2, Sparkles, RefreshCw } from 'lucide-react';
 import { useGameAudio } from './GameAudioContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { updateProgressData, addCompletedLesson } from '../../utils/progressStorage';
@@ -17,43 +17,36 @@ const items = [
     id: 'apple',
     image: 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?auto=format&fit=crop&w=150&h=150',
     name: { en: 'apple', es: 'manzana' },
-    prompt: { en: 'How many images of apples do you see?', es: '¿Cuántas fotos de manzanas ves?' },
+    prompt: { en: 'How many apples do you see?', es: '¿Cuántas manzanas ves?' },
     color: 'from-red-400 to-red-600'
   },
   {
     id: 'star',
     image: 'https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=150&h=150',
     name: { en: 'star', es: 'estrella' },
-    prompt: { en: 'How many images of stars do you see?', es: '¿Cuántas imágenes de estrellas ves?' },
+    prompt: { en: 'How many stars do you see?', es: '¿Cuántas estrellas ves?' },
     color: 'from-yellow-400 to-yellow-600'
   },
   {
     id: 'flower',
     image: 'https://images.unsplash.com/photo-1490750967868-88aa4486c946?auto=format&fit=crop&w=150&h=150',
     name: { en: 'flower', es: 'flor' },
-    prompt: { en: 'How many images of flowers do you see?', es: '¿Cuántas imágenes de flores ves?' },
+    prompt: { en: 'How many flowers do you see?', es: '¿Cuántas flores ves?' },
     color: 'from-pink-400 to-pink-600'
   },
   {
     id: 'toy',
     image: 'https://images.unsplash.com/photo-1558877385-81a1c7e67d72?auto=format&fit=crop&w=150&h=150',
     name: { en: 'toy', es: 'juguete' },
-    prompt: { en: 'How many pictures of toys do you see?', es: '¿Cuántos fotos de juguetes ves?' },
+    prompt: { en: 'How many toys do you see?', es: '¿Cuántos juguetes ves?' },
     color: 'from-blue-400 to-blue-600'
   },
   {
     id: 'cookie',
     image: 'https://images.unsplash.com/photo-1499636136210-6f4ee915583e?auto=format&fit=crop&w=150&h=150',
     name: { en: 'cookie', es: 'galleta' },
-    prompt: { en: 'How many photos of cookies do you see?', es: '¿Cuántas fotos de galletas ves?' },
+    prompt: { en: 'How many cookies do you see?', es: '¿Cuántas galletas ves?' },
     color: 'from-amber-400 to-amber-600'
-  },
-  {
-    id: 'butterfly',
-    image: 'https://images.unsplash.com/photo-1559722746-c8c34c4c753f?auto=format&fit=crop&w=150&h=150',
-    name: { en: 'butterfly', es: 'mariposa' },
-    prompt: { en: 'How many pictures of butterflies do you see?', es: '¿Cuántas fotos de mariposas ves?' },
-    color: 'from-purple-400 to-purple-600'
   }
 ];
 
@@ -73,22 +66,17 @@ export function CountingGame({ isDarkMode, isVibrant, onExit, language }: Counti
   const [isItemAnimating, setIsItemAnimating] = useState(false);
   const [showItemLabel, setShowItemLabel] = useState(false);
   const [gameComplete, setGameComplete] = useState(false);
-  const [redirectTimer, setRedirectTimer] = useState<number | null>(null);
-  const [usedItems, setUsedItems] = useState<number[]>([]);
-  const [exitTriggered, setExitTriggered] = useState(false);
 
   // Initialize game
   useEffect(() => {
     generateNewRound();
   }, []);
 
-  // Handle game completion
   const handleGameCompletion = async () => {
-    if (!user || exitTriggered) return;
+    if (!user) return;
 
     setGameComplete(true);
     playGameSound('success');
-    setExitTriggered(true);
 
     try {
       // Update reward points (10 points per correct count)
@@ -107,56 +95,29 @@ export function CountingGame({ isDarkMode, isVibrant, onExit, language }: Counti
         speakText(victoryMessage, language === 'es' ? 'es-ES' : 'en-US');
       }
 
-      // Start redirect countdown
-      let countdown = 5;
-      const timer = window.setInterval(() => {
-        countdown--;
-        setRedirectTimer(countdown);
-        
-        if (countdown <= 0) {
-          clearInterval(timer);
-          onExit(); // Redirect back to learning path
-        }
-      }, 1000);
+      // Return to learning path and force refresh to repopulate games
+      setTimeout(() => {
+        onExit();
+        window.location.reload(); // Force refresh to repopulate available games
+      }, 3000);
 
     } catch (error) {
       console.error('Error updating progress:', error);
-      // Still exit after delay even if progress update fails
+      // Still exit and refresh after error
       setTimeout(() => {
         onExit();
-      }, 5000);
+        window.location.reload(); // Force refresh even after error
+      }, 3000);
     }
   };
 
-  // Get next available item that hasn't been used recently
-  const getNextItem = () => {
-    const availableItems = items
-      .map((_, index) => index)
-      .filter(index => !usedItems.includes(index));
-
-    // If all items have been used, reset the used items list
-    if (availableItems.length === 0) {
-      setUsedItems([]);
-      return Math.floor(Math.random() * items.length);
-    }
-
-    const randomIndex = Math.floor(Math.random() * availableItems.length);
-    const nextItem = availableItems[randomIndex];
-    
-    // Add to used items list
-    setUsedItems(prev => [...prev, nextItem]);
-    
-    return nextItem;
-  };
-
-  // Generate new round with synchronized items and prompts
   const generateNewRound = () => {
     setIsTransitioning(true);
     setShowItemLabel(false);
     setSelectedOption(null);
     
     // Get next unused item
-    const nextItem = getNextItem();
+    const nextItem = Math.floor(Math.random() * items.length);
     setCurrentItem(nextItem);
     
     // Generate random count (1-5)
@@ -177,13 +138,12 @@ export function CountingGame({ isDarkMode, isVibrant, onExit, language }: Counti
     setOptions(numberOptions);
 
     // Speak the prompt for the current item
-    if (soundEnabled) {
-      const prompt = items[nextItem].prompt[language as keyof typeof items[0]['prompt']];
-      speakText(prompt, language === 'es' ? 'es-ES' : 'en-US');
-    }
-
     setTimeout(() => {
       setIsTransitioning(false);
+      if (soundEnabled) {
+        const prompt = items[nextItem].prompt[language as keyof typeof items[0]['prompt']];
+        speakText(prompt, language === 'es' ? 'es-ES' : 'en-US');
+      }
     }, 300);
   };
 
@@ -233,21 +193,13 @@ export function CountingGame({ isDarkMode, isVibrant, onExit, language }: Counti
     }
   };
 
-  // Handle early exit
-  const handleExit = () => {
-    if (!exitTriggered) {
-      setExitTriggered(true);
-      onExit();
-    }
-  };
-
   return (
     <div className="min-h-screen pt-20 pb-8 px-4">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <button
-            onClick={handleExit}
+            onClick={onExit}
             className={`
               p-2 rounded-full
               ${isDarkMode ? 'bg-gray-800' : 'bg-white'}
@@ -383,7 +335,7 @@ export function CountingGame({ isDarkMode, isVibrant, onExit, language }: Counti
           </div>
 
           {/* Celebration Overlay */}
-          {(showCelebration || gameComplete) && (
+          {showCelebration && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-3xl">
               <div className="text-center">
                 <h3 className="text-4xl font-bold text-white mb-4">
@@ -414,35 +366,11 @@ export function CountingGame({ isDarkMode, isVibrant, onExit, language }: Counti
                   ))}
                 </div>
                 {gameComplete && (
-                  <>
-                    <p className="text-white text-xl mt-4">
-                      {language === 'es'
-                        ? `¡Ganaste ${score * 10} puntos!`
-                        : `You earned ${score * 10} points!`}
-                    </p>
-                    {redirectTimer !== null && (
-                      <p className="text-white text-lg mt-2">
-                        {language === 'es'
-                          ? `Volviendo al menú en ${redirectTimer}...`
-                          : `Returning to menu in ${redirectTimer}...`}
-                      </p>
-                    )}
-                    <button
-                      onClick={handleExit}
-                      className={`
-                        mt-6 px-6 py-3 rounded-xl
-                        flex items-center gap-2 mx-auto
-                        font-bold text-white
-                        transform hover:scale-105
-                        transition-all duration-300
-                        ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100 text-gray-900'}
-                        shadow-lg
-                      `}
-                    >
-                      <Home className="w-5 h-5" />
-                      <span>{language === 'es' ? 'Volver al Menú' : 'Return to Menu'}</span>
-                    </button>
-                  </>
+                  <p className="text-white text-xl mt-4">
+                    {language === 'es'
+                      ? `¡Ganaste ${score * 10} puntos!`
+                      : `You earned ${score * 10} points!`}
+                  </p>
                 )}
               </div>
             </div>
