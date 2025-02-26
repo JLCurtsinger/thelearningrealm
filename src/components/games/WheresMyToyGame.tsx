@@ -22,7 +22,7 @@ const toys = [
   {
     id: 'ball',
     name: { en: 'colorful ball', es: 'pelota de colores' },
-    image: 'https://images.unsplash.com/photo-1515548950066-8e1c7e9e6c62?auto=format&fit=crop&w=300&h=300',
+    image: 'https://images.unsplash.com/photo-1510697963685-53101e615777?q=80&w=3270&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D,
     color: 'from-blue-400 to-blue-600'
   },
   {
@@ -40,7 +40,7 @@ const toys = [
   {
     id: 'doll',
     name: { en: 'doll', es: 'muñeca' },
-    image: 'https://images.unsplash.com/photo-1613040809024-b4ef7ba99bc3?auto=format&fit=crop&w=300&h=300',
+    image: 'https://images.unsplash.com/photo-1648217051161-679aba057014?q=80&w=3270&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
     color: 'from-pink-400 to-pink-600'
   }
 ];
