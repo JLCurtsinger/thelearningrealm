@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Settings as AlphabetLatin, Speaker as SpeakerHigh, PencilLine, Search, Lock, Sparkles, Volume2 } from 'lucide-react';
 import { FindLetterGame } from './games/FindLetterGame';
 import { WordBuilderGame } from './games/WordBuilderGame';
@@ -12,8 +12,53 @@ interface GamesPageProps {
   language: string;
 }
 
+// Function to generate unique Dicebear avatar configurations
+const generateUniqueAvatarConfig = (gameId: string) => {
+  // Use the game ID as a base for the seed to ensure consistency
+  const baseSeeds: Record<string, string> = {
+    'letter-matching': 'alphabet',
+    'phonics': 'sound',
+    'word-builder': 'writer',
+    'find-letter': 'detective',
+    'number-adventure': 'math',
+    'shape-explorer': 'shapes'
+  };
+  
+  // Get base seed or use gameId if not found
+  const baseSeed = baseSeeds[gameId] || gameId;
+  
+  // Add randomization to ensure uniqueness but with deterministic values based on gameId
+  // This ensures the same game always gets the same avatar
+  const hash = gameId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const randomEyes = (hash % 16) + 1;
+  const randomMouth = ((hash * 3) % 16) + 1;
+  const randomColor = (hash * 7) % 360;
+  
+  // Create a unique configuration string
+  return `${baseSeed}&backgroundColor=transparent&eyes=variant${randomEyes.toString().padStart(2, '0')}&mouth=variant${randomMouth.toString().padStart(2, '0')}&colors=primary,${randomColor}`;
+};
+
 export function GamesPage({ isDarkMode, isVibrant, t, language }: GamesPageProps) {
   const [activeGame, setActiveGame] = useState<string | null>(null);
+  // Store avatar configurations for each game
+  const [gameAvatars, setGameAvatars] = useState<Record<string, string>>({});
+
+  // Generate avatars once on component mount
+  useEffect(() => {
+    const avatars: Record<string, string> = {};
+    
+    // Generate avatars for main games
+    mainGames.forEach(game => {
+      avatars[game.id] = generateUniqueAvatarConfig(game.id);
+    });
+    
+    // Generate avatars for upcoming games
+    upcomingGames.forEach(game => {
+      avatars[game.id] = generateUniqueAvatarConfig(game.id);
+    });
+    
+    setGameAvatars(avatars);
+  }, []);
 
   // Audio feedback setup
   const playSound = (type: 'success' | 'click') => {
@@ -64,6 +109,7 @@ export function GamesPage({ isDarkMode, isVibrant, t, language }: GamesPageProps
   // Coming soon games
   const upcomingGames = [
     {
+      id: 'number-adventure',
       title: t.gamesPage.upcomingGames.numberAdventure.title,
       description: t.gamesPage.upcomingGames.numberAdventure.description,
       icon: Lock,
@@ -72,6 +118,7 @@ export function GamesPage({ isDarkMode, isVibrant, t, language }: GamesPageProps
       lightColor: "from-pink-100 via-rose-50 to-red-50"
     },
     {
+      id: 'shape-explorer',
       title: t.gamesPage.upcomingGames.shapeExplorer.title,
       description: t.gamesPage.upcomingGames.shapeExplorer.description,
       icon: Lock,
@@ -168,16 +215,19 @@ export function GamesPage({ isDarkMode, isVibrant, t, language }: GamesPageProps
 
               {/* Content */}
               <div className="relative flex flex-col items-center space-y-6">
-                <game.icon className={`
-                  w-24 h-24
-                  ${isVibrant
-                    ? `bg-gradient-to-r ${game.color} [background-clip:text] text-transparent`
-                    : isDarkMode
-                      ? 'text-white'
-                      : 'text-gray-900'
-                  }
-                  animate-float
-                `} />
+                {/* Dicebear Character */}
+                <div className="w-24 h-24 transform group-hover:scale-110 transition-transform duration-500">
+                  <img
+                    src={`https://api.dicebear.com/7.x/bottts/svg?seed=${gameAvatars[game.id] || game.id}`}
+                    alt={game.title}
+                    className="w-full h-full object-contain"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.onerror = null;
+                      target.src = "https://api.dicebear.com/7.x/bottts/svg?seed=fallback";
+                    }}
+                  />
+                </div>
 
                 <div className="text-center">
                   <h3 className={`
@@ -238,15 +288,19 @@ export function GamesPage({ isDarkMode, isVibrant, t, language }: GamesPageProps
 
                 {/* Content */}
                 <div className="relative flex flex-col items-center space-y-6">
-                  <game.icon className={`
-                    w-24 h-24
-                    ${isVibrant
-                      ? `bg-gradient-to-r ${game.color} [background-clip:text] text-transparent`
-                      : isDarkMode
-                        ? 'text-white/50'
-                        : 'text-gray-900/50'
-                    }
-                  `} />
+                  {/* Dicebear Character */}
+                  <div className="w-24 h-24 opacity-60">
+                    <img
+                      src={`https://api.dicebear.com/7.x/bottts/svg?seed=${gameAvatars[game.id] || game.id}`}
+                      alt={game.title}
+                      className="w-full h-full object-contain"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.onerror = null;
+                        target.src = "https://api.dicebear.com/7.x/bottts/svg?seed=fallback";
+                      }}
+                    />
+                  </div>
 
                   <div className="text-center">
                     <h3 className={`
