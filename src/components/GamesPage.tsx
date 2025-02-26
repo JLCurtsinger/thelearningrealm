@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Settings as AlphabetLatin, Speaker as SpeakerHigh, PencilLine, Search, Lock, Sparkles, Volume2 } from 'lucide-react';
 import { FindLetterGame } from './games/FindLetterGame';
 import { WordBuilderGame } from './games/WordBuilderGame';
@@ -16,7 +16,7 @@ interface GamesPageProps {
 const generateUniqueAvatarConfig = (gameId: string) => {
   // Use the game ID as a base for the seed to ensure consistency
   const baseSeeds: Record<string, string> = {
-    'letter-matching': 'alphabet',
+    'letter-matching': 'teacher',
     'phonics': 'sound',
     'word-builder': 'writer',
     'find-letter': 'detective',
@@ -38,27 +38,11 @@ const generateUniqueAvatarConfig = (gameId: string) => {
   return `${baseSeed}&backgroundColor=transparent&eyes=variant${randomEyes.toString().padStart(2, '0')}&mouth=variant${randomMouth.toString().padStart(2, '0')}&colors=primary,${randomColor}`;
 };
 
+// Pre-generate all avatar configurations
+const preGeneratedAvatars: Record<string, string> = {};
+
 export function GamesPage({ isDarkMode, isVibrant, t, language }: GamesPageProps) {
   const [activeGame, setActiveGame] = useState<string | null>(null);
-  // Store avatar configurations for each game
-  const [gameAvatars, setGameAvatars] = useState<Record<string, string>>({});
-
-  // Generate avatars once on component mount
-  useEffect(() => {
-    const avatars: Record<string, string> = {};
-    
-    // Generate avatars for main games
-    mainGames.forEach(game => {
-      avatars[game.id] = generateUniqueAvatarConfig(game.id);
-    });
-    
-    // Generate avatars for upcoming games
-    upcomingGames.forEach(game => {
-      avatars[game.id] = generateUniqueAvatarConfig(game.id);
-    });
-    
-    setGameAvatars(avatars);
-  }, []);
 
   // Audio feedback setup
   const playSound = (type: 'success' | 'click') => {
@@ -69,7 +53,7 @@ export function GamesPage({ isDarkMode, isVibrant, t, language }: GamesPageProps
   // Main games data
   const mainGames = [
     {
-      id: 'letter-matching',
+      id: 'lettermatching',
       title: t.gamesPage.mainGames.letterMatching.title,
       description: t.gamesPage.mainGames.letterMatching.description,
       icon: AlphabetLatin,
@@ -87,7 +71,7 @@ export function GamesPage({ isDarkMode, isVibrant, t, language }: GamesPageProps
       lightColor: "from-green-100 via-emerald-50 to-teal-50"
     },
     {
-      id: 'word-builder',
+      id: 'wordbuilder',
       title: t.gamesPage.mainGames.wordBuilder.title,
       description: t.gamesPage.mainGames.wordBuilder.description,
       icon: PencilLine,
@@ -96,7 +80,7 @@ export function GamesPage({ isDarkMode, isVibrant, t, language }: GamesPageProps
       lightColor: "from-yellow-100 via-orange-50 to-red-50"
     },
     {
-      id: 'find-letter',
+      id: 'findletter',
       title: t.gamesPage.mainGames.findLetter.title,
       description: t.gamesPage.mainGames.findLetter.description,
       icon: Search,
@@ -109,7 +93,7 @@ export function GamesPage({ isDarkMode, isVibrant, t, language }: GamesPageProps
   // Coming soon games
   const upcomingGames = [
     {
-      id: 'number-adventure',
+      id: 'numberadventure',
       title: t.gamesPage.upcomingGames.numberAdventure.title,
       description: t.gamesPage.upcomingGames.numberAdventure.description,
       icon: Lock,
@@ -118,7 +102,7 @@ export function GamesPage({ isDarkMode, isVibrant, t, language }: GamesPageProps
       lightColor: "from-pink-100 via-rose-50 to-red-50"
     },
     {
-      id: 'shape-explorer',
+      id: 'shapeexplorer',
       title: t.gamesPage.upcomingGames.shapeExplorer.title,
       description: t.gamesPage.upcomingGames.shapeExplorer.description,
       icon: Lock,
@@ -128,8 +112,15 @@ export function GamesPage({ isDarkMode, isVibrant, t, language }: GamesPageProps
     }
   ];
 
+  // Generate avatars for all games
+  if (Object.keys(preGeneratedAvatars).length === 0) {
+    [...mainGames, ...upcomingGames].forEach(game => {
+      preGeneratedAvatars[game.id] = generateUniqueAvatarConfig(game.id);
+    });
+  }
+
   // Render active game or game selection
-  if (activeGame === 'letter-matching') {
+  if (activeGame === 'lettermatching') {
     return (
       <LetterMatchingGame
         isDarkMode={isDarkMode}
@@ -151,7 +142,7 @@ export function GamesPage({ isDarkMode, isVibrant, t, language }: GamesPageProps
     );
   }
 
-  if (activeGame === 'find-letter') {
+  if (activeGame === 'findletter') {
     return (
       <FindLetterGame
         isDarkMode={isDarkMode}
@@ -162,7 +153,7 @@ export function GamesPage({ isDarkMode, isVibrant, t, language }: GamesPageProps
     );
   }
 
-  if (activeGame === 'word-builder') {
+  if (activeGame === 'wordbuilder') {
     return (
       <WordBuilderGame
         isDarkMode={isDarkMode}
@@ -218,7 +209,7 @@ export function GamesPage({ isDarkMode, isVibrant, t, language }: GamesPageProps
                 {/* Dicebear Character */}
                 <div className="w-24 h-24 transform group-hover:scale-110 transition-transform duration-500">
                   <img
-                    src={`https://api.dicebear.com/7.x/bottts/svg?seed=${gameAvatars[game.id] || game.id}`}
+                    src={`https://api.dicebear.com/7.x/bottts/svg?seed=${preGeneratedAvatars[game.id] || game.id}`}
                     alt={game.title}
                     className="w-full h-full object-contain"
                     onError={(e) => {
@@ -291,7 +282,7 @@ export function GamesPage({ isDarkMode, isVibrant, t, language }: GamesPageProps
                   {/* Dicebear Character */}
                   <div className="w-24 h-24 opacity-60">
                     <img
-                      src={`https://api.dicebear.com/7.x/bottts/svg?seed=${gameAvatars[game.id] || game.id}`}
+                      src={`https://api.dicebear.com/7.x/bottts/svg?seed=${preGeneratedAvatars[game.id] || game.id}`}
                       alt={game.title}
                       className="w-full h-full object-contain"
                       onError={(e) => {
