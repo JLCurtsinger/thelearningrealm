@@ -53,7 +53,7 @@ export function WordBuilderGame({ isDarkMode, isVibrant, onExit, language }: Wor
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isWordAnimating, setIsWordAnimating] = useState(false);
   const [showWordOverlay, setShowWordOverlay] = useState(false);
-  const [selectedLetterIndex, setSelectedLetterIndex] = useState<number | null>(null);
+  const [errorLetterIndex, setErrorLetterIndex] = useState<number | null>(null);
   const [gameComplete, setGameComplete] = useState(false);
   const [showVictory, setShowVictory] = useState(false);
 
@@ -145,22 +145,25 @@ export function WordBuilderGame({ isDarkMode, isVibrant, onExit, language }: Wor
     if (gameComplete) return;
 
     playGameSound('click');
-    setSelectedLetterIndex(index);
     
-    // Add letter to selected letters
-    const newSelectedLetters = [...selectedLetters, letter];
-    setSelectedLetters(newSelectedLetters);
+    // Check if this is the next correct letter
+    const currentWordObj = words[currentWord];
+    const wordToSpell = currentWordObj.word;
+    const nextCorrectLetterIndex = selectedLetters.length;
     
-    // Remove letter from available letters
-    const newAvailable = [...availableLetters];
-    newAvailable.splice(index, 1);
-    setAvailableLetters(newAvailable);
+    if (nextCorrectLetterIndex < wordToSpell.length && letter === wordToSpell[nextCorrectLetterIndex]) {
+      // Correct letter - add it to selected letters
+      const newSelectedLetters = [...selectedLetters, letter];
+      setSelectedLetters(newSelectedLetters);
+      
+      // Remove letter from available letters
+      const newAvailable = [...availableLetters];
+      newAvailable.splice(index, 1);
+      setAvailableLetters(newAvailable);
 
-    // Check if word is complete
-    const newWord = newSelectedLetters.join('');
-    if (newWord.length === words[currentWord].word.length) {
-      if (newWord === words[currentWord].word) {
-        // Correct word
+      // Check if word is complete
+      if (newSelectedLetters.length === wordToSpell.length) {
+        // Word is complete
         playGameSound('success');
         setScore(score + 1);
         setShowCelebration(true);
@@ -187,25 +190,22 @@ export function WordBuilderGame({ isDarkMode, isVibrant, onExit, language }: Wor
             handleGameCompletion();
           }
         }, 2000);
-      } else {
-        // Wrong word
-        playGameSound('error');
-        setShowError(true);
-        
-        if (soundEnabled) {
-          const tryAgain = language === 'es'
-            ? 'Inténtalo de nuevo'
-            : 'Try again';
-          speakText(tryAgain, language === 'es' ? 'es-ES' : 'en-US');
-        }
-
-        setTimeout(() => {
-          setShowError(false);
-          setSelectedLetters([]);
-          setSelectedLetterIndex(null);
-          generateNewWord(currentWord); // Regenerate current word
-        }, 1000);
       }
+    } else {
+      // Wrong letter - show error but don't add to selected letters
+      playGameSound('error');
+      setErrorLetterIndex(index);
+      
+      if (soundEnabled) {
+        const tryAgain = language === 'es'
+          ? 'Inténtalo de nuevo'
+          : 'Try again';
+        speakText(tryAgain, language === 'es' ? 'es-ES' : 'en-US');
+      }
+
+      setTimeout(() => {
+        setErrorLetterIndex(null);
+      }, 500);
     }
   };
 
@@ -344,8 +344,8 @@ export function WordBuilderGame({ isDarkMode, isVibrant, onExit, language }: Wor
                       ? 'bg-gray-700'
                       : 'bg-purple-600'
                   }
-                  ${selectedLetterIndex === index
-                    ? 'scale-90 opacity-50'
+                  ${errorLetterIndex === index
+                    ? 'animate-[shake_0.5s_ease-in-out] border-2 border-red-500'
                     : 'hover:scale-110'
                   }
                   shadow-lg
