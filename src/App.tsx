@@ -164,11 +164,12 @@ function App() {
           )}
 
           {showBreakPage && (
-            <BreakPage
-              isDarkMode={isDarkMode}
-              isVibrant={isVibrant}
-              t={t}
-            />
+            <>
+            {console.log("Rendering BreakPage Component")}
+            <BreakPage 
+              isDarkMode={isDarkMode} 
+              isVibrant={isVibrant} t={t} />
+            </>
           )}
 
           {showContactPage && (
