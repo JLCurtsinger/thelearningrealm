@@ -166,6 +166,12 @@ export function CalmingScenes({ isDarkMode, isVibrant, t, language }: CalmingSce
     }, 2000);
   }, []);
 
+  // Handle scene selection
+  const handleSceneSelection = (index: number) => {
+    console.log(`Changing scene to index: ${index}, name: ${animations[index].name}`);
+    setCurrentAnimation(index);
+  };
+
   // Generate random position within constraints
   const getRandomPosition = (xRange: [number, number], yRange: [number, number]) => {
     const x = Math.random() * (xRange[1] - xRange[0]) + xRange[0];
@@ -180,7 +186,7 @@ export function CalmingScenes({ isDarkMode, isVibrant, t, language }: CalmingSce
         {animations.map((anim, index) => (
           <button
             key={index}
-            onClick={() => setCurrentAnimation(index)}
+            onClick={() => handleSceneSelection(index)}
             className={`
               px-4 py-2 rounded-full
               transition-all duration-300
@@ -213,10 +219,12 @@ export function CalmingScenes({ isDarkMode, isVibrant, t, language }: CalmingSce
         onClick={handleSceneClick}
       >
         {/* Background with smooth gradient transition */}
-        <div className={`
-          absolute inset-0 transition-all duration-1000
-          bg-gradient-to-b ${animations[currentAnimation].gradient}
-        `} />
+        <div 
+          className="absolute inset-0 transition-all duration-1000"
+          style={{
+            background: `linear-gradient(to bottom, ${animations[currentAnimation].gradient.replace('from-', '').replace('via-', '').replace('to-', '').split(' ').map(color => `var(--tw-${color})`).join(', ')})`,
+          }}
+        />
 
         {/* Interactive Ripple Effects */}
         {ripples.map((ripple, index) => (
