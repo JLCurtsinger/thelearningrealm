@@ -23,6 +23,8 @@ const audioTracks = [
   }
 ];
 
+console.log("BreakPage from BreakPage.tsx is rendering");
+
 export function BreakPage({ isDarkMode, isVibrant, t }: BreakPageProps) {
   const [activeActivity, setActiveActivity] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);

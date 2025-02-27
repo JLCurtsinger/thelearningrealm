@@ -38,6 +38,8 @@ const activities = [
   }
 ];
 
+console.log("BreakPage from index.tsx is rendering");
+
 export function BreakPage({ isDarkMode, isVibrant, t }: BreakPageProps) {
   const [activeActivity, setActiveActivity] = useState<string | null>(null);
 
