@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Volume2, Star, Sparkles, Play } from 'lucide-react';
+import { Volume2, Star, Sparkles, Play, ArrowLeft } from 'lucide-react';
 import { useGameAudio } from './GameAudioContext';
 
 interface ICanMoveGameProps {
@@ -194,6 +194,19 @@ export function ICanMoveGame({ isDarkMode, isVibrant, onExit, language }: ICanMo
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-4">
+            {/* Back Button */}
+            <button
+              onClick={onExit}
+              className={`
+                p-2 rounded-full
+                ${isDarkMode ? 'bg-gray-800' : 'bg-white'}
+                shadow-lg
+                transition-transform hover:scale-110
+              `}
+            >
+              <ArrowLeft className="w-6 h-6" />
+            </button>
+            
             {/* Progress Indicator */}
             {isStarted && (
               <div className={`

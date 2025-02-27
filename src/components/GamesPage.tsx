@@ -24,46 +24,53 @@ interface GamesPageProps {
   language: string;
 }
 
-// Function to generate unique Dicebear avatar configurations
-const generateUniqueAvatarConfig = (gameId: string) => {
-  // Use the game ID as a base for the seed to ensure consistency
-  const baseSeeds: Record<string, string> = {
-    'letter-matching': 'teacher',
-    'phonics': 'sound',
-    'word-builder': 'writer',
-    'find-letter': 'detective',
-    'number-adventure': 'math',
-    'shape-explorer': 'shapes',
-    'counting': 'numbers',
-    'shape-sorter': 'geometry',
-    'emotion-match': 'feelings',
-    'chat-with-gpt': 'conversation',
-    'what-am-i-wearing': 'clothes',
-    'wheres-my-toy': 'toys',
-    'i-can-move': 'movement',
-    'i-can-wave': 'greeting',
-    'i-can-jump': 'jumping',
-    'i-can-clap': 'clapping',
-    'i-can-stomp': 'stomping',
-    'i-can-do-it-all': 'actions'
-  };
-  
-  // Get base seed or use gameId if not found
-  const baseSeed = baseSeeds[gameId] || gameId;
-  
-  // Add randomization to ensure uniqueness but with deterministic values based on gameId
-  // This ensures the same game always gets the same avatar
+// Predefined avatar configurations for each game
+const GAME_AVATARS: Record<string, string> = {
+  'lettermatching': 'teacher&backgroundColor=transparent&eyes=variant09&mouth=smile&hair=long16',
+  'phonics': 'sound&backgroundColor=transparent&eyes=variant06&mouth=variant06&hair=long15',
+  'wordbuilder': 'writer&backgroundColor=transparent&eyes=variant05&mouth=variant05&hair=long12',
+  'findletter': 'detective&backgroundColor=transparent&eyes=variant04&mouth=variant04&hair=long14',
+  'numberadventure': 'math&backgroundColor=transparent&eyes=variant03&mouth=variant03&hair=long13',
+  'shapeexplorer': 'shapes&backgroundColor=transparent&eyes=variant02&mouth=variant02&hair=long11',
+  'counting': 'numbers&backgroundColor=transparent&eyes=variant01&mouth=variant01&hair=long10',
+  'shapesorter': 'geometry&backgroundColor=transparent&eyes=variant08&mouth=variant08&hair=long09',
+  'emotionmatch': 'feelings&backgroundColor=transparent&eyes=variant07&mouth=variant07&hair=long08',
+  'chatwithgpt': 'conversation&backgroundColor=transparent&eyes=variant10&mouth=variant10&hair=long07',
+  'whatamiwearing': 'fashion&backgroundColor=transparent&eyes=variant11&mouth=variant11&hair=long06',
+  'wheresmytoy': 'explorer&backgroundColor=transparent&eyes=variant12&mouth=variant12&hair=long05',
+  'icanmove': 'runner&backgroundColor=transparent&eyes=variant13&mouth=variant13&hair=long04',
+  'icanwave': 'friendly&backgroundColor=transparent&eyes=variant14&mouth=variant14&hair=long03',
+  'icanjump': 'jumper&backgroundColor=transparent&eyes=variant15&mouth=variant15&hair=long02',
+  'icanclap': 'musical&backgroundColor=transparent&eyes=variant16&mouth=variant16&hair=long01',
+  'icanstomp': 'dancer&backgroundColor=transparent&eyes=variant01&mouth=variant01&hair=short01',
+  'icandoitall': 'superhero&backgroundColor=transparent&eyes=variant02&mouth=variant02&hair=short02'
+};
+
+// Fallback avatar generator for any missing games
+const generateFallbackAvatar = (gameId: string) => {
+  // Generate a deterministic but unique seed based on the game ID
   const hash = gameId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  
+  // Create variations based on the hash
+  const style = ['adventurer', 'bottts', 'personas', 'micah'][hash % 4];
   const randomEyes = (hash % 16) + 1;
   const randomMouth = ((hash * 3) % 16) + 1;
   const randomColor = (hash * 7) % 360;
   
-  // Create a unique configuration string
-  return `${baseSeed}&backgroundColor=transparent&eyes=variant${randomEyes.toString().padStart(2, '0')}&mouth=variant${randomMouth.toString().padStart(2, '0')}&colors=primary,${randomColor}`;
+  // Return a complete Dicebear URL with unique parameters
+  return `https://api.dicebear.com/7.x/${style}/svg?seed=${gameId}&backgroundColor=transparent&eyes=variant${randomEyes.toString().padStart(2, '0')}&mouth=variant${randomMouth.toString().padStart(2, '0')}&colors=primary,${randomColor}`;
 };
 
-// Pre-generate all avatar configurations
-const preGeneratedAvatars: Record<string, string> = {};
+// Get avatar URL for a game
+const getGameAvatarUrl = (gameId: string): string => {
+  // If we have a predefined configuration, use it
+  if (GAME_AVATARS[gameId]) {
+    return `https://api.dicebear.com/7.x/adventurer/svg?seed=${GAME_AVATARS[gameId]}`;
+  }
+  
+  // Otherwise, generate a fallback
+  return generateFallbackAvatar(gameId);
+};
 
 export function GamesPage({ isDarkMode, isVibrant, t, language }: GamesPageProps) {
   const [activeGame, setActiveGame] = useState<string | null>(null);
@@ -211,13 +218,6 @@ export function GamesPage({ isDarkMode, isVibrant, t, language }: GamesPageProps
       lightColor: "from-violet-100 via-purple-50 to-fuchsia-50"
     }
   ];
-
-  // Generate avatars for all games
-  if (Object.keys(preGeneratedAvatars).length === 0) {
-    [...mainGames, ...upcomingGames, ...additionalGames].forEach(game => {
-      preGeneratedAvatars[game.id] = generateUniqueAvatarConfig(game.id);
-    });
-  }
 
   // Render active game or game selection
   if (activeGame === 'lettermatching') {
@@ -441,7 +441,7 @@ export function GamesPage({ isDarkMode, isVibrant, t, language }: GamesPageProps
                 {/* Dicebear Character */}
                 <div className="w-24 h-24 transform group-hover:scale-110 transition-transform duration-500">
                   <img
-                    src={`https://api.dicebear.com/7.x/bottts/svg?seed=${preGeneratedAvatars[game.id] || game.id}`}
+                    src={getGameAvatarUrl(game.id)}
                     alt={game.title}
                     className="w-full h-full object-contain"
                     onError={(e) => {
@@ -529,7 +529,7 @@ export function GamesPage({ isDarkMode, isVibrant, t, language }: GamesPageProps
                   {/* Dicebear Character */}
                   <div className="w-20 h-20 transform group-hover:scale-110 transition-transform duration-500">
                     <img
-                      src={`https://api.dicebear.com/7.x/bottts/svg?seed=${preGeneratedAvatars[game.id] || game.id}`}
+                      src={getGameAvatarUrl(game.id)}
                       alt={game.title}
                       className="w-full h-full object-contain"
                       onError={(e) => {
@@ -596,7 +596,7 @@ export function GamesPage({ isDarkMode, isVibrant, t, language }: GamesPageProps
                   {/* Dicebear Character */}
                   <div className="w-24 h-24 opacity-60">
                     <img
-                      src={`https://api.dicebear.com/7.x/bottts/svg?seed=${preGeneratedAvatars[game.id] || game.id}`}
+                      src={getGameAvatarUrl(game.id)}
                       alt={game.title}
                       className="w-full h-full object-contain"
                       onError={(e) => {

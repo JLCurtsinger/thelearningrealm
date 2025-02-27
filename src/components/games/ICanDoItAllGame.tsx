@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Volume2, Star, Sparkles, Play, Home } from 'lucide-react';
+import { Volume2, Star, Sparkles, Play, Home, ArrowLeft } from 'lucide-react';
 import { useGameAudio } from './GameAudioContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { updateProgressData, addCompletedLesson } from '../../utils/progressStorage';
@@ -60,15 +60,8 @@ export function ICanDoItAllGame({ isDarkMode, isVibrant, onExit, language }: ICa
 
   // Initialize game
   useEffect(() => {
-    if (soundEnabled && !isStarted) {
-      speakText(
-        language === 'es' 
-          ? '¡Vamos a movernos!' 
-          : "Let's move!",
-        language === 'es' ? 'es-ES' : 'en-US'
-      );
-    }
-  }, [isStarted]);
+    generateNewRound(0);
+  }, []);
 
   // Handle game completion
   const handleGameCompletion = async () => {
@@ -107,6 +100,29 @@ export function ICanDoItAllGame({ isDarkMode, isVibrant, onExit, language }: ICa
     }
   };
 
+  // Generate new round with synchronized actions and prompts
+  const generateNewRound = (actionIndex: number) => {
+    setIsTransitioning(true);
+    setPromptReady(false);
+    setShowActionLabel(false);
+    setSelectedCharacter(null);
+    
+    // Get target action
+    const targetAction = actions[actionIndex];
+    
+    // Ensure visual transition is complete before speaking prompt
+    setTimeout(() => {
+      setIsTransitioning(false);
+      setPromptReady(true);
+      
+      // Speak the prompt only after transition and when ready
+      if (soundEnabled) {
+        const prompt = targetAction.prompt[language as keyof typeof targetAction.prompt];
+        speakText(prompt, language === 'es' ? 'es-ES' : 'en-US');
+      }
+    }, 300);
+  };
+
   const handleCharacterClick = (action: string, index: number) => {
     if (gameComplete || !promptReady) return;
     setSelectedCharacter(index);
@@ -130,12 +146,9 @@ export function ICanDoItAllGame({ isDarkMode, isVibrant, onExit, language }: ICa
         setIsCharacterAnimating(false);
         setShowCelebration(false);
         if (currentAction < actions.length - 1) {
-          setIsTransitioning(true);
-          setTimeout(() => {
-            setCurrentAction(prev => prev + 1);
-            setSelectedCharacter(null);
-            setIsTransitioning(false);
-          }, 500);
+          const nextAction = (currentAction + 1) % actions.length;
+          setCurrentAction(nextAction);
+          generateNewRound(nextAction);
         } else {
           handleGameCompletion();
         }
@@ -253,12 +266,26 @@ export function ICanDoItAllGame({ isDarkMode, isVibrant, onExit, language }: ICa
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-4">
+            {/* Back Button */}
+            <button
+              onClick={onExit}
+              className={`
+                p-2 rounded-full
+                ${isDarkMode ? 'bg-gray-800' : 'bg-white'}
+                shadow-lg
+                transition-transform hover:scale-110
+              `}
+            >
+              <ArrowLeft className="w-6 h-6" />
+            </button>
+            
             {/* Progress Indicator */}
             {isStarted && (
               <div className={`
                 px-4 py-2 rounded-full font-bold
                 ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}
                 shadow-lg
+                transition-opacity duration-300
               `}>
                 {language === 'es'
                   ? `Acción ${currentAction + 1} de ${actions.length}`
