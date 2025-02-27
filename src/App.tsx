@@ -169,6 +169,7 @@ function App() {
               isDarkMode={isDarkMode}
               isVibrant={isVibrant}
               t={t}
+            />
           )}
 
           {showGamesPage && (
