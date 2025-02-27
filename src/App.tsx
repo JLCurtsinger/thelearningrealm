@@ -68,6 +68,15 @@ function App() {
 
   const handleNavigation = (page: string) => {
     console.log('Navigating to:', page); // Add logging
+    console.log('Current state before change:', {
+      showBreakPage,
+      showDashboard,
+      showLearningPath,
+      showVideoPage,
+      showGamesPage,
+      showContactPage,
+      showTermsPage
+  });
     switch (page) {
       case 'dashboard':
         navigateToDashboard(resetAllPages, setActiveView, setShowDashboard);
@@ -94,6 +103,15 @@ function App() {
         navigateToTerms(resetAllPages, setActiveView, setShowTermsPage);
         break;
     }
+    console.log('Current state after change:', {
+      showBreakPage,
+      showDashboard,
+      showLearningPath,
+      showVideoPage,
+      showGamesPage,
+      showContactPage,
+      showTermsPage
+    });
   };
 
   const handleAuthModalClose = () => {
@@ -151,7 +169,6 @@ function App() {
               isDarkMode={isDarkMode}
               isVibrant={isVibrant}
               t={t}
-            />
           )}
 
           {showGamesPage && (
