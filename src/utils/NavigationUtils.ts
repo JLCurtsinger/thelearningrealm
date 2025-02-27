@@ -5,7 +5,10 @@ export const navigateToBreakPage = (
 ) => {
   resetAllPages();
   setActiveView('break');
-  setShowBreakPage(true);
+  setShowBreakPage((prev) => {
+    console.log("Updating showBreakPage to true");
+    return true;
+  });
 };
 
 export const navigateToLearningPath = (

@@ -42,6 +42,11 @@ function App() {
 
   useNavigationScroll(activeView);
 
+  // Debug useEffect to log showBreakPage state changes
+  useEffect(() => {
+    console.log("Updated showBreakPage state:", showBreakPage);
+  }, [showBreakPage]);
+
   useEffect(() => {
     const handleShowAuthModal = (event: CustomEvent) => {
       setShowAuthModal(true);
@@ -76,13 +81,15 @@ function App() {
       showGamesPage,
       showContactPage,
       showTermsPage
-  });
+    });
     switch (page) {
       case 'dashboard':
         navigateToDashboard(resetAllPages, setActiveView, setShowDashboard);
         break;
       case 'break':
-        navigateToBreakPage(resetAllPages, setActiveView, setShowBreakPage);
+        setTimeout(() => {
+          navigateToBreakPage(resetAllPages, setActiveView, setShowBreakPage);
+        }, 10);
         break;
       case 'learning':
         navigateToLearningPath(resetAllPages, setActiveView, setShowLearningPath);
