@@ -36,8 +36,14 @@ Lesson Link is available online. No installation is required—simply visit:
 If you experience any issues or have suggestions, please reach out via our website.
 
 ## 🚨 License
-**This software is proprietary. Unauthorized use, copying, or modification is prohibited.**  
-All rights reserved. Please contact the project owner for permissions or inquiries.
+**This project is licensed under the Apache License 2.0.
+
+You are free to use, modify, and distribute this software as long as you:
+	•	Include attribution to the original project.
+	•	Retain the original license file (LICENSE).
+	•	State any modifications if you distribute a modified version.
+
+⚠️ Disclaimer: This project is open-source, but a proprietary version with additional features is available. If you are interested in commercial use, please contact the maintainers.
 
 ---
 
