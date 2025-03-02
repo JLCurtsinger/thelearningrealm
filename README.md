@@ -36,7 +36,7 @@ Lesson Link is available online. No installation is required—simply visit:
 If you experience any issues or have suggestions, please reach out via our website.
 
 ## 🚨 License
-**This project is licensed under the Apache License 2.0.
+This project is licensed under the Apache License 2.0.
 
 You are free to use, modify, and distribute this software as long as you:
 	•	Include attribution to the original project.
