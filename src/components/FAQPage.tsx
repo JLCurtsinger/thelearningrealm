@@ -37,11 +37,11 @@ export function FAQPage({ isDarkMode, isVibrant, t }: FAQPageProps) {
     },
     {
       question: "Is Lesson Link free to use?",
-      answer: "Lesson Link offers both free and premium features. Some educational games and activities are available for free, while additional content and advanced features may require a subscription."
+      answer: "Yes! Lesson Link is free to use! We may expand and offer premium features, but creating a free educational resource for all will always be a top priority for our team."
     },
     {
       question: "Does Lesson Link offer AI-powered learning?",
-      answer: "Yes! Lesson Link uses AI to analyze placement test results and recommend personalized learning paths. It also features AI-powered speech feedback to enhance engagement."
+      answer: "Yes! Lesson Link uses AI to analyze placement test results and recommend personalized learning paths. It also features AI-powered speech feedback to enhance engagement in the games."
     },
     {
       question: "Can parents track their child's progress?",
@@ -50,7 +50,7 @@ export function FAQPage({ isDarkMode, isVibrant, t }: FAQPageProps) {
     {
       question: "What are the Break Page activities?",
       answer: [
-        "Break Page activities are designed to help children relax between learning sessions. These include:",
+        "Break Page activities (currently under construction) are designed to help children relax between learning sessions. These include:",
         "• Soothing Music: A selection of calming tracks to help kids unwind.",
         "• Calming Scenes: Animated visuals designed to create a peaceful atmosphere.",
         "• Relaxing Doodles: Interactive drawing exercises for creative expression."
@@ -58,7 +58,7 @@ export function FAQPage({ isDarkMode, isVibrant, t }: FAQPageProps) {
     },
     {
       question: "Is Lesson Link suitable for all ages?",
-      answer: "Lesson Link is primarily designed for early learners, but its interactive format makes it accessible and engaging for a range of ages."
+      answer: "Lesson Link is primarily designed for early learners, but its interactive format makes it accessible and engaging for a range of ages. We plan to expand by offering lessons and personalized learning pathways for all age ranges in the future!"
     },
     {
       question: "How do I contact support?",
