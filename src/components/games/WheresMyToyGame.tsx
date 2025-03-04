@@ -9,6 +9,7 @@ interface WheresMyToyGameProps {
   isVibrant: boolean;
   onExit: () => void;
   language: string;
+  startedFrom?: string; // Add prop to track where the user started from
 }
 
 // Toy data with translations and reliable images
@@ -21,7 +22,8 @@ const toys = [
   },
   {
     id: 'ball',
-    name: { en: 'ball', es: 'pelota' },
+    name: { 
+      en: 'ball', es: 'pelota' },
     image: 'https://images.unsplash.com/photo-1510697963685-53101e615777?q=80&w=2340&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
   },
   {
@@ -44,7 +46,7 @@ const toys = [
   }
 ];
 
-export function WheresMyToyGame({ isDarkMode, isVibrant, onExit, language }: WheresMyToyGameProps) {
+export function WheresMyToyGame({ isDarkMode, isVibrant, onExit, language, startedFrom = 'learning' }: WheresMyToyGameProps) {
   const { user } = useAuth();
   const { soundEnabled, toggleSound, playGameSound, speakText } = useGameAudio();
   const [currentToy, setCurrentToy] = useState(0);
@@ -59,6 +61,14 @@ export function WheresMyToyGame({ isDarkMode, isVibrant, onExit, language }: Whe
   const [showToyLabel, setShowToyLabel] = useState(false);
   const [gameComplete, setGameComplete] = useState(false);
   const [redirectTimer, setRedirectTimer] = useState<number | null>(null);
+  
+  // Store the origin page in session storage when component mounts
+  useEffect(() => {
+    // If startedFrom prop is provided, store it
+    if (startedFrom) {
+      sessionStorage.setItem('toyGameOrigin', startedFrom);
+    }
+  }, [startedFrom]);
 
   // Initialize game
   useEffect(() => {
@@ -97,7 +107,7 @@ export function WheresMyToyGame({ isDarkMode, isVibrant, onExit, language }: Whe
         
         if (countdown <= 0) {
           clearInterval(timer);
-          onExit(); // Redirect back to learning path
+          handleExit(); // Use our custom exit handler
         }
       }, 1000);
 
@@ -105,7 +115,7 @@ export function WheresMyToyGame({ isDarkMode, isVibrant, onExit, language }: Whe
       console.error('Error updating progress:', error);
       // Still exit after delay even if progress update fails
       setTimeout(() => {
-        onExit();
+        handleExit();
       }, 5000);
     }
   };
@@ -116,32 +126,41 @@ export function WheresMyToyGame({ isDarkMode, isVibrant, onExit, language }: Whe
     setShowToyLabel(false);
     setSelectedToy(null);
     
+    // First, determine the target toy index to ensure consistency
+    const targetToyIndex = Math.floor(Math.random() * toys.length);
+    const targetToy = toys[targetToyIndex];
+    
+    // Update the current toy state
+    setCurrentToy(targetToyIndex);
+    
     // Shuffle toys and select 4 random ones (including the target)
     const shuffledToys = [...toys].sort(() => Math.random() - 0.5);
     const selectedToys = shuffledToys.slice(0, 4);
     
     // Ensure target toy is included
-    if (!selectedToys.find(toy => toy.id === toys[currentToy].id)) {
-      selectedToys[Math.floor(Math.random() * 4)] = toys[currentToy];
+    if (!selectedToys.find(toy => toy.id === targetToy.id)) {
+      selectedToys[Math.floor(Math.random() * 4)] = targetToy;
     }
     
     // Shuffle the positions again
-    setDisplayedToys(selectedToys.sort(() => Math.random() - 0.5));
+    const finalToys = selectedToys.sort(() => Math.random() - 0.5);
+    setDisplayedToys(finalToys);
 
-    // Speak the prompt
-    if (soundEnabled) {
-      const prompt = language === 'es'
-        ? `¿Puedes encontrar el ${toys[currentToy].name.es}?`
-        : `Can you find the ${toys[currentToy].name.en}?`;
-      speakText(prompt, language === 'es' ? 'es-ES' : 'en-US');
-    }
-
+    // Speak the prompt using the targetToy (not currentToy state which might not be updated yet)
     setTimeout(() => {
       setIsTransitioning(false);
+      
+      // Speak the prompt with the correct toy name
+      if (soundEnabled) {
+        const prompt = language === 'es'
+          ? `¿Puedes encontrar el ${targetToy.name.es}?`
+          : `Can you find the ${targetToy.name.en}?`;
+        speakText(prompt, language === 'es' ? 'es-ES' : 'en-US');
+      }
     }, 300);
   };
 
-  const handleToyClick = (toyId: string) => {
+  const handleToyClick = async (toyId: string) => {
     if (gameComplete) return;
     setSelectedToy(toyId);
 
@@ -164,7 +183,6 @@ export function WheresMyToyGame({ isDarkMode, isVibrant, onExit, language }: Whe
         setShowCelebration(false);
         if (round < totalRounds) {
           setRound(prev => prev + 1);
-          setCurrentToy((currentToy + 1) % toys.length);
           generateNewRound();
         } else {
           handleGameCompletion();
@@ -186,9 +204,24 @@ export function WheresMyToyGame({ isDarkMode, isVibrant, onExit, language }: Whe
     }
   };
 
-  // Handle back button click
-  const handleBackClick = () => {
-    // Just call onExit without updating progress or showing celebration
+  // Custom exit handler that checks where the user came from
+  const handleExit = () => {
+    // Get the origin page from session storage
+    const origin = sessionStorage.getItem('toyGameOrigin') || 'learning';
+    
+    // Clear the session storage
+    sessionStorage.removeItem('toyGameOrigin');
+    
+    // Call the onExit function with the origin information
+    if (typeof window !== 'undefined') {
+      // Dispatch a custom event to navigate to the correct page
+      const event = new CustomEvent('navigateTo', { 
+        detail: { page: origin }
+      });
+      window.dispatchEvent(event);
+    }
+    
+    // Call the original onExit function
     onExit();
   };
 
@@ -199,7 +232,7 @@ export function WheresMyToyGame({ isDarkMode, isVibrant, onExit, language }: Whe
         <div className="flex items-center justify-between mb-8">
           {/* Back Button */}
           <button
-            onClick={handleBackClick}
+            onClick={handleExit}
             className={`
               p-2 rounded-full
               ${isDarkMode ? 'bg-gray-800' : 'bg-white'}
@@ -365,7 +398,7 @@ export function WheresMyToyGame({ isDarkMode, isVibrant, onExit, language }: Whe
                       </p>
                     )}
                     <button
-                      onClick={onExit}
+                      onClick={handleExit}
                       className={`
                         mt-6 px-6 py-3 rounded-xl
                         flex items-center gap-2 mx-auto

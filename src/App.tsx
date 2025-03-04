@@ -10,6 +10,8 @@ import { GamesPage } from './components/GamesPage';
 import { BreakPage } from './components/BreakPage';
 import { ContactPage } from './components/ContactPage';
 import { TermsPage } from './components/TermsPage';
+import { AboutPage } from './components/AboutPage';
+import { FAQPage } from './components/FAQPage';
 import { Navigation } from './components/Navigation';
 import { useLanguage, useRainbowMode, useNavigationScroll } from './hooks/useGlobalState';
 import {
@@ -20,7 +22,9 @@ import {
   navigateToHome,
   navigateToDashboard,
   navigateToContact,
-  navigateToTerms
+  navigateToTerms,
+  navigateToAbout,
+  navigateToFAQ
 } from './utils/NavigationUtils';
 
 function App() {
@@ -35,6 +39,8 @@ function App() {
   const [showBreakPage, setShowBreakPage] = useState(false);
   const [showContactPage, setShowContactPage] = useState(false);
   const [showTermsPage, setShowTermsPage] = useState(false);
+  const [showAboutPage, setShowAboutPage] = useState(false);
+  const [showFAQPage, setShowFAQPage] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authReturnTo, setAuthReturnTo] = useState<string | null>(null);
 
@@ -42,7 +48,6 @@ function App() {
 
   useNavigationScroll(activeView);
 
-  // Debug useEffect to log showBreakPage state changes
   useEffect(() => {
     console.log("Updated showBreakPage state:", showBreakPage);
   }, [showBreakPage]);
@@ -61,6 +66,21 @@ function App() {
     };
   }, []);
 
+  useEffect(() => {
+    const handleNavigationEvent = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      if (customEvent.detail?.page) {
+        handleNavigation(customEvent.detail.page);
+      }
+    };
+
+    window.addEventListener('navigateTo', handleNavigationEvent);
+    
+    return () => {
+      window.removeEventListener('navigateTo', handleNavigationEvent);
+    };
+  }, []);
+
   const resetAllPages = () => {
     setShowDashboard(false);
     setShowLearningPath(false);
@@ -69,10 +89,12 @@ function App() {
     setShowBreakPage(false);
     setShowContactPage(false);
     setShowTermsPage(false);
+    setShowAboutPage(false);
+    setShowFAQPage(false);
   };
 
   const handleNavigation = (page: string) => {
-    console.log('Navigating to:', page); // Add logging
+    console.log('Navigating to:', page);
     console.log('Current state before change:', {
       showBreakPage,
       showDashboard,
@@ -80,7 +102,9 @@ function App() {
       showVideoPage,
       showGamesPage,
       showContactPage,
-      showTermsPage
+      showTermsPage,
+      showAboutPage,
+      showFAQPage
     });
     switch (page) {
       case 'dashboard':
@@ -109,6 +133,12 @@ function App() {
       case 'terms':
         navigateToTerms(resetAllPages, setActiveView, setShowTermsPage);
         break;
+      case 'about':
+        navigateToAbout(resetAllPages, setActiveView, setShowAboutPage);
+        break;
+      case 'faq':
+        navigateToFAQ(resetAllPages, setActiveView, setShowFAQPage);
+        break;
     }
     console.log('Current state after change:', {
       showBreakPage,
@@ -117,7 +147,9 @@ function App() {
       showVideoPage,
       showGamesPage,
       showContactPage,
-      showTermsPage
+      showTermsPage,
+      showAboutPage,
+      showFAQPage
     });
   };
 
@@ -213,7 +245,24 @@ function App() {
             />
           )}
 
-          {!showDashboard && !showLearningPath && !showVideoPage && !showGamesPage && !showBreakPage && !showContactPage && !showTermsPage && (
+          {showAboutPage && (
+            <AboutPage
+              isDarkMode={isDarkMode}
+              isVibrant={isVibrant}
+              t={t}
+            />
+          )}
+
+          {showFAQPage && (
+            <FAQPage
+              isDarkMode={isDarkMode}
+              isVibrant={isVibrant}
+              t={t}
+            />
+          )}
+
+          {!showDashboard && !showLearningPath && !showVideoPage && !showGamesPage && 
+           !showBreakPage && !showContactPage && !showTermsPage && !showAboutPage && !showFAQPage && (
             <>
               <main className="pt-16">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -330,11 +379,26 @@ function App() {
                     >
                       {t.contact}
                     </button>
-                    <a href="#" className={`${
-                      isVibrant 
-                        ? 'text-gray-700 dark:text-gray-300 hover:text-blue-500' 
-                        : 'text-gray-900 dark:text-gray-300 hover:text-purple-500'
-                    } transition-colors`}>{t.help}</a>
+                    <button
+                      onClick={() => handleNavigation('about')}
+                      className={`${
+                        isVibrant 
+                          ? 'text-gray-700 dark:text-gray-300 hover:text-blue-500' 
+                          : 'text-gray-900 dark:text-gray-300 hover:text-purple-500'
+                      } transition-colors`}
+                    >
+                      About
+                    </button>
+                    <button
+                      onClick={() => handleNavigation('faq')}
+                      className={`${
+                        isVibrant 
+                          ? 'text-gray-700 dark:text-gray-300 hover:text-blue-500' 
+                          : 'text-gray-900 dark:text-gray-300 hover:text-purple-500'
+                      } transition-colors`}
+                    >
+                      {t.help}
+                    </button>
                   </div>
                 </div>
               </footer>

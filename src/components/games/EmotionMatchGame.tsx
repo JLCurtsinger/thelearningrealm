@@ -11,39 +11,39 @@ interface EmotionMatchGameProps {
   language: string;
 }
 
-// Shape data with translations and SVG paths
+// Emotion data with SVG facial expressions
 const emotions = [
   {
     id: 'happy',
-    path: 'M50 90a40 40 0 1 0 0-80 40 40 0 0 0 0 80z',
+    path: 'M50 90a40 40 0 1 0 0-80 40 40 0 0 0 0 80z M30 40a5 5 0 1 0 0-10 5 5 0 0 0 0 10z M70 40a5 5 0 1 0 0-10 5 5 0 0 0 0 10z M30 60 Q50 80 70 60',
     name: { en: 'happy', es: 'feliz' },
-    prompt: { en: 'Find the happy face!', es: '¡Encuentra la cara feliz!' },
+    prompt: { en: 'Find the happy face!', es: '¿Encuentra la cara feliz!' },
     color: 'from-yellow-400 to-yellow-600'
   },
   {
     id: 'sad',
-    path: 'M10 10h80v80H10z',
+    path: 'M50 90a40 40 0 1 0 0-80 40 40 0 0 0 0 80z M30 40a5 5 0 1 0 0-10 5 5 0 0 0 0 10z M70 40a5 5 0 1 0 0-10 5 5 0 0 0 0 10z M30 70 Q50 50 70 70',
     name: { en: 'sad', es: 'triste' },
     prompt: { en: 'Who looks sad?', es: '¿Quién parece triste?' },
     color: 'from-blue-400 to-blue-600'
   },
   {
     id: 'surprised',
-    path: 'M50 10L90 90H10z',
+    path: 'M50 90a40 40 0 1 0 0-80 40 40 0 0 0 0 80z M30 35a5 5 0 1 0 0-10 5 5 0 0 0 0 10z M70 35a5 5 0 1 0 0-10 5 5 0 0 0 0 10z M50 70a10 10 0 1 0 0-20 10 10 0 0 0 0 20z',
     name: { en: 'surprised', es: 'sorprendido' },
     prompt: { en: 'Find the surprised face!', es: '¡Encuentra la cara sorprendida!' },
     color: 'from-yellow-400 to-yellow-600'
   },
   {
     id: 'sleepy',
-    path: 'M50 10l12 24 26 4-19 18 4 26-23-12-23 12 4-26-19-18 26-4z',
+    path: 'M50 90a40 40 0 1 0 0-80 40 40 0 0 0 0 80z M30 35a5 2 0 1 0 0-4 5 2 0 0 0 0 4z M70 35a5 2 0 1 0 0-4 5 2 0 0 0 0 4z M30 60 Q50 65 70 60',
     name: { en: 'sleepy', es: 'soñoliento' },
     prompt: { en: 'Who looks sleepy?', es: '¿Quién parece soñoliento?' },
     color: 'from-purple-400 to-purple-600'
   },
   {
     id: 'excited',
-    path: 'M50 90c30-20 40-38 40-48 0-22-40-22-40 0 0-22-40-22-40 0 0 10 10 28 40 48z',
+    path: 'M50 90a40 40 0 1 0 0-80 40 40 0 0 0 0 80z M30 40a5 5 0 1 0 0-10 5 5 0 0 0 0 10z M70 40a5 5 0 1 0 0-10 5 5 0 0 0 0 10z M25 55 Q50 85 75 55',
     name: { en: 'excited', es: 'emocionado' },
     prompt: { en: 'Find the excited face!', es: '¡Encuentra la cara emocionada!' },
     color: 'from-pink-400 to-pink-600'
@@ -67,7 +67,7 @@ export function EmotionMatchGame({ isDarkMode, isVibrant, onExit, language }: Em
   const [gameComplete, setGameComplete] = useState(false);
   const [promptReady, setPromptReady] = useState(false);
 
-  // Initialize game on mount
+  // Initialize game
   useEffect(() => {
     generateNewRound(0);
   }, []);
@@ -99,14 +99,12 @@ export function EmotionMatchGame({ isDarkMode, isVibrant, onExit, language }: Em
       // Return to learning path after delay
       setTimeout(() => {
         onExit();
-        window.location.reload(); // Force refresh to repopulate available games
       }, 3000);
     } catch (error) {
       console.error('Error updating progress:', error);
       // Still exit after delay even if progress update fails
       setTimeout(() => {
         onExit();
-        window.location.reload(); // Force refresh even after error
       }, 3000);
     }
   };
@@ -117,21 +115,21 @@ export function EmotionMatchGame({ isDarkMode, isVibrant, onExit, language }: Em
     setPromptReady(false);
     setShowEmotionLabel(false);
     setSelectedEmotion(null);
-
+    
     // Get target emotion
     const targetEmotion = emotions[emotionIndex];
-
+    
     // Get remaining emotions excluding the target emotion
     const remainingEmotions = emotions.filter(e => e.id !== targetEmotion.id);
-
+    
     // Randomly select 2 other emotions
     const shuffledEmotions = remainingEmotions.sort(() => Math.random() - 0.5);
     const selectedOtherEmotions = shuffledEmotions.slice(0, 2);
-
+    
     // Combine target emotion with random emotions and shuffle
     const allOptions = [targetEmotion, ...selectedOtherEmotions]
       .sort(() => Math.random() - 0.5);
-
+    
     setOptions(allOptions);
 
     // Ensure visual transition is complete before speaking prompt

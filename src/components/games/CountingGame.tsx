@@ -17,35 +17,35 @@ const items = [
     id: 'apple',
     image: 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?auto=format&fit=crop&w=150&h=150',
     name: { en: 'apple', es: 'manzana' },
-    prompt: { en: 'How many apples do you see?', es: '¿Cuántas manzanas ves?' },
+    prompt: { en: 'How many images of apples do you see?', es: '¿Cuántas fotos de manzanas ves?' },
     color: 'from-red-400 to-red-600'
   },
   {
     id: 'star',
     image: 'https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=150&h=150',
     name: { en: 'star', es: 'estrella' },
-    prompt: { en: 'How many stars do you see?', es: '¿Cuántas estrellas ves?' },
+    prompt: { en: 'How many photos of stars do you see?', es: '¿Cuántas fotos de estrellas ves?' },
     color: 'from-yellow-400 to-yellow-600'
   },
   {
     id: 'flower',
     image: 'https://images.unsplash.com/photo-1490750967868-88aa4486c946?auto=format&fit=crop&w=150&h=150',
     name: { en: 'flower', es: 'flor' },
-    prompt: { en: 'How many flowers do you see?', es: '¿Cuántas flores ves?' },
+    prompt: { en: 'How many pictures of flowers do you see?', es: '¿Cuántas fotos de flores ves?' },
     color: 'from-pink-400 to-pink-600'
   },
   {
     id: 'toy',
     image: 'https://images.unsplash.com/photo-1558877385-81a1c7e67d72?auto=format&fit=crop&w=150&h=150',
     name: { en: 'toy', es: 'juguete' },
-    prompt: { en: 'How many toys do you see?', es: '¿Cuántos juguetes ves?' },
+    prompt: { en: 'How many images of toys do you see?', es: '¿Cuántos fotos de juguetes ves?' },
     color: 'from-blue-400 to-blue-600'
   },
   {
     id: 'cookie',
     image: 'https://images.unsplash.com/photo-1499636136210-6f4ee915583e?auto=format&fit=crop&w=150&h=150',
     name: { en: 'cookie', es: 'galleta' },
-    prompt: { en: 'How many cookies do you see?', es: '¿Cuántas galletas ves?' },
+    prompt: { en: 'How many photos of cookies do you see?', es: '¿Cuántas fotos de galletas ves?' },
     color: 'from-amber-400 to-amber-600'
   }
 ];

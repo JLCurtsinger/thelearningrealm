@@ -174,6 +174,13 @@ const mapAILessonsToLocalGames = (
   return selectedLessons;
 };
 
+interface LearningPathProps {
+  isDarkMode: boolean;
+  isVibrant: boolean;
+  t: any;
+  language: string;
+}
+
 export function LearningPath({ isDarkMode, isVibrant, t, language }: LearningPathProps) {
   const { user } = useAuth();
   const [activeGame, setActiveGame] = useState<string | null>(null);
@@ -212,6 +219,25 @@ export function LearningPath({ isDarkMode, isVibrant, t, language }: LearningPat
     loadUserProgress();
   }, [user]);
 
+  // Set up event listener for navigation
+  React.useEffect(() => {
+    const handleNavigationEvent = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      if (customEvent.detail?.page) {
+        // If the navigation event is to return to the learning page, just close the active game
+        if (customEvent.detail.page === 'learning') {
+          setActiveGame(null);
+        }
+      }
+    };
+
+    window.addEventListener('navigateTo', handleNavigationEvent);
+    
+    return () => {
+      window.removeEventListener('navigateTo', handleNavigationEvent);
+    };
+  }, []);
+
   // Handle game completion and update displayed lessons
   const handleGameExit = async () => {
     if (user && activeGame) {
@@ -227,11 +253,33 @@ export function LearningPath({ isDarkMode, isVibrant, t, language }: LearningPat
     setActiveGame(null);
   };
 
+  // Handle game selection with origin tracking
+  const handleGameSelect = (gameId: string) => {
+    // Store the origin before starting the game
+    sessionStorage.setItem('toyGameOrigin', 'learning');
+    setActiveGame(gameId);
+  };
+
   if (activeGame) {
     const selectedLesson = displayedLessons.find(lesson => lesson.id === activeGame);
     
     if (selectedLesson?.component && GAME_COMPONENTS[selectedLesson.component]) {
       const GameComponent = GAME_COMPONENTS[selectedLesson.component];
+      
+      // Special handling for WheresMyToyGame to pass the startedFrom prop
+      if (selectedLesson.component === 'WheresMyToyGame') {
+        return (
+          <GameComponent
+            isDarkMode={isDarkMode}
+            isVibrant={isVibrant}
+            onExit={handleGameExit}
+            language={language}
+            startedFrom="learning"
+          />
+        );
+      }
+      
+      // For all other games
       return (
         <GameComponent
           isDarkMode={isDarkMode}
@@ -260,7 +308,7 @@ export function LearningPath({ isDarkMode, isVibrant, t, language }: LearningPat
               `}
             >
               <button
-                onClick={() => setActiveGame(lesson.id)}
+                onClick={() => handleGameSelect(lesson.id)}
                 className={`
                   relative w-full
                   flex flex-col items-center

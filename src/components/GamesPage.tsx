@@ -219,6 +219,33 @@ export function GamesPage({ isDarkMode, isVibrant, t, language }: GamesPageProps
     }
   ];
 
+  // Set up event listener for navigation
+  React.useEffect(() => {
+    const handleNavigationEvent = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      if (customEvent.detail?.page) {
+        // If the navigation event is to return to the games page, just close the active game
+        if (customEvent.detail.page === 'games') {
+          setActiveGame(null);
+        }
+      }
+    };
+
+    window.addEventListener('navigateTo', handleNavigationEvent);
+    
+    return () => {
+      window.removeEventListener('navigateTo', handleNavigationEvent);
+    };
+  }, []);
+
+  // Handle game selection with origin tracking
+  const handleGameSelect = (gameId: string) => {
+    playSound('click');
+    // Store the origin before starting the game
+    sessionStorage.setItem('toyGameOrigin', 'games');
+    setActiveGame(gameId);
+  };
+
   // Render active game or game selection
   if (activeGame === 'lettermatching') {
     return (
@@ -326,6 +353,7 @@ export function GamesPage({ isDarkMode, isVibrant, t, language }: GamesPageProps
         isVibrant={isVibrant}
         onExit={() => setActiveGame(null)}
         language={language}
+        startedFrom="games"
       />
     );
   }
@@ -404,10 +432,7 @@ export function GamesPage({ isDarkMode, isVibrant, t, language }: GamesPageProps
           {mainGames.map((game, index) => (
             <button
               key={index}
-              onClick={() => {
-                playSound('click');
-                setActiveGame(game.id);
-              }}
+              onClick={() => handleGameSelect(game.id)}
               className={`
                 relative p-8 rounded-3xl
                 transform hover:scale-105 transition-all duration-500
@@ -492,10 +517,7 @@ export function GamesPage({ isDarkMode, isVibrant, t, language }: GamesPageProps
             {additionalGames.map((game, index) => (
               <button
                 key={index}
-                onClick={() => {
-                  playSound('click');
-                  setActiveGame(game.id);
-                }}
+                onClick={() => handleGameSelect(game.id)}
                 className={`
                   relative p-6 rounded-2xl
                   transform hover:scale-105 transition-all duration-500

@@ -78,3 +78,23 @@ export const navigateToTerms = (
   setActiveView('terms');
   setShowTermsPage(true);
 };
+
+export const navigateToAbout = (
+  resetAllPages: () => void,
+  setActiveView: (view: string) => void,
+  setShowAboutPage: (show: boolean) => void
+) => {
+  resetAllPages();
+  setActiveView('about');
+  setShowAboutPage(true);
+};
+
+export const navigateToFAQ = (
+  resetAllPages: () => void,
+  setActiveView: (view: string) => void,
+  setShowFAQPage: (show: boolean) => void
+) => {
+  resetAllPages();
+  setActiveView('faq');
+  setShowFAQPage(true);
+};
