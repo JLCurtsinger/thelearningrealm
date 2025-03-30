@@ -1,8 +1,9 @@
-For all designs I ask you to make, have them be beautiful, not cookie cutter. Make webpages that are fully featured and worthy for production.
+For all designs I ask you to make, ensure they are beautiful, engaging, and unique, avoiding cookie-cutter layouts. Prioritize user experience, accessibility, and performance, ensuring the designs are fully featured and worthy of production use.
 
-By default, this template supports JSX syntax with Tailwind CSS classes, React hooks, and Lucide React for icons. Do not install other packages for UI themes, icons, etc unless absolutely necessary or I request them.
+Webpages should be interactive and visually appealing, incorporating high-quality UI and UX principles. Use JSX syntax with Tailwind CSS, React hooks, and Lucide React for icons. Do not install third-party UI themes or icon packs unless absolutely necessary or explicitly requested.
 
-Use icons from lucide-react for logos.
+All educational games and simulations should be intuitive, fun, and interactive, aligning with Lesson Link’s educational goals. Prioritize real-time feedback, progress tracking, and accessibility in learning activities. Avoid static, uninspired interfaces—everything should feel dynamic and engaging.
 
-Use stock photos from unsplash where appropriate, only valid URLs you know exist. Do not download the images, only link to them in image tags.
+Use stock images from Unsplash where necessary, only linking to valid URLs. For icons and logos, use Lucide React. All custom-generated images should be high contrast, clean, and visually striking, in line with Lesson Link’s design philosophy.
 
+Avoid bloated dependencies and keep the codebase clean and efficient. Ensure fast loading times and minimal external requests to optimize performance.

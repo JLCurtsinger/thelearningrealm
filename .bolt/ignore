@@ -1,0 +1,35 @@
+# Ignore environment and configuration files
+.env
+Dockerfile
+Procfile
+netlify.toml
+package-lock.json
+package.json
+postcss.config.js
+tailwind.config.js
+tsconfig.*
+vite.config.ts
+eslint.config.js
+
+# Ignore backend-related files
+video-translator-backend/
+app.py
+requirements.txt
+
+# Ignore build and output files
+dist/
+public/
+assets/
+
+# Ignore test and map files (if present)
+*.map
+
+# Ignore node_modules (Bolt should already ignore this by default, but just in case)
+node_modules/
+
+# Ignore utility libraries that don't need AI assistance
+lib/
+utils/
+
+# Ignore static assets
+vite.svg

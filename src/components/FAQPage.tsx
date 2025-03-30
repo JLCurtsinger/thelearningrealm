@@ -66,6 +66,31 @@ export function FAQPage({ isDarkMode, isVibrant, t }: FAQPageProps) {
     }
   ];
 
+  // Add FAQ Schema
+  React.useEffect(() => {
+    const faqSchema = {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": faqs.map(faq => ({
+        "@type": "Question",
+        "name": faq.question,
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": Array.isArray(faq.answer) ? faq.answer.join(" ") : faq.answer
+        }
+      }))
+    };
+
+    const script = document.createElement('script');
+    script.type = 'application/ld+json';
+    script.text = JSON.stringify(faqSchema);
+    document.head.appendChild(script);
+
+    return () => {
+      document.head.removeChild(script);
+    };
+  }, []);
+
   return (
     <div className="min-h-screen pt-20 pb-8 px-4">
       <div className="max-w-4xl mx-auto">
@@ -88,8 +113,8 @@ export function FAQPage({ isDarkMode, isVibrant, t }: FAQPageProps) {
         </div>
 
         {/* FAQ Items */}
-        <div className="space-y-6">
-          {faqs.map((faq, index) => (
+        <div className="space-y-8">
+          {faqs.map((section, index) => (
             <div
               key={index}
               className={`
@@ -100,9 +125,9 @@ export function FAQPage({ isDarkMode, isVibrant, t }: FAQPageProps) {
                 transition-all duration-300
               `}
             >
-              <div className="flex gap-4">
+              <div className="flex items-start gap-4">
                 <div className={`
-                  flex-shrink-0 p-3 rounded-xl h-fit
+                  p-3 rounded-xl
                   ${isVibrant
                     ? 'bg-gradient-to-r from-purple-500 via-pink-500 to-red-500'
                     : isDarkMode
@@ -117,16 +142,16 @@ export function FAQPage({ isDarkMode, isVibrant, t }: FAQPageProps) {
                 </div>
                 <div className="flex-1">
                   <h2 className={`
-                    text-xl font-bold mb-3
+                    text-xl font-bold mb-4
                     ${isDarkMode ? 'text-white' : 'text-gray-900'}
                   `}>
-                    {faq.question}
+                    {section.question}
                   </h2>
-                  {Array.isArray(faq.answer) ? (
-                    <div className="space-y-2">
-                      {faq.answer.map((paragraph, i) => (
+                  <div className="space-y-3">
+                    {Array.isArray(section.answer) ? (
+                      section.answer.map((paragraph, pIndex) => (
                         <p
-                          key={i}
+                          key={pIndex}
                           className={`
                             text-base leading-relaxed
                             ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}
@@ -134,16 +159,16 @@ export function FAQPage({ isDarkMode, isVibrant, t }: FAQPageProps) {
                         >
                           {paragraph}
                         </p>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className={`
-                      text-base leading-relaxed
-                      ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}
-                    `}>
-                      {faq.answer}
-                    </p>
-                  )}
+                      ))
+                    ) : (
+                      <p className={`
+                        text-base leading-relaxed
+                        ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}
+                      `}>
+                        {section.answer}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -187,6 +212,7 @@ export function FAQPage({ isDarkMode, isVibrant, t }: FAQPageProps) {
             transition-all duration-300
             z-10
           `}
+          aria-label="Scroll to top"
         >
           <ArrowUp className={`
             w-6 h-6

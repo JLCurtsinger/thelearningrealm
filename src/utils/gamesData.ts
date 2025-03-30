@@ -1,5 +1,25 @@
 export const games = [
   {
+    id: "bubblepop",
+    title: "🫧 Bubble Pop Counting",
+    description: "Pop bubbles in numerical order in an underwater adventure",
+    component: "BubblePopGame",
+    recommendedFor: ["early", "beginner"],
+    skills: ["counting", "number-sequence", "hand-eye-coordination"],
+    difficulty: "easy",
+    estimatedTime: "5-10 minutes",
+    languages: ["en", "es"],
+    features: {
+      audio: true,
+      animation: true,
+      interaction: true
+    },
+    metadata: {
+      version: "1.0.0",
+      lastUpdated: "2024-03-19"
+    }
+  },
+  {
     id: "icanmove",
     title: "📘 I Can Move!",
     description: "Say what action is happening in a picture",

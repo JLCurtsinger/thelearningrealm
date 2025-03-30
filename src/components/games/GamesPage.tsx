@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { GameList } from './games/GameList';
-import { GameSelection } from './games/GameSelection';
-import { mainGames, additionalGames } from './games/GameData';
+import { GameList } from './GameList';
+import { GameSelection } from './GameSelection';
+import { mainGames, additionalGames } from './GameData';
 
 interface GamesPageProps {
   isDarkMode: boolean;

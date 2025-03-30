@@ -59,17 +59,14 @@ export function AboutPage({ isDarkMode, isVibrant, t }: AboutPageProps) {
       content: [
         {
           name: "Brenna Da-Tokpah",
-          // role: "Content Advisor & Lead Author",
           affiliation: "Arizona State University, Education Policy"
         },
         {
           name: "Yash Sanjay Dorshetwar",
-          // role: "AI Development Lead",
           affiliation: "Arizona State University, Robotics & AI"
         },
         {
           name: "Justin Curtsinger",
-          // role: "UI/UX & Frontend Lead",
           affiliation: "Arizona State University, Media Arts & Sciences",
           link: "https://elev8.dev/"
         }
@@ -89,6 +86,32 @@ export function AboutPage({ isDarkMode, isVibrant, t }: AboutPageProps) {
       ]
     }
   ];
+
+  // Add Organization Schema
+  React.useEffect(() => {
+    const organizationSchema = {
+      "@context": "https://schema.org",
+      "@type": "EducationalOrganization",
+      "name": "Lesson Link",
+      "description": "An AI-powered personalized learning platform designed for young children, offering interactive educational games and activities.",
+      "url": "https://lessonlink.org",
+      "email": "Admin@LessonLink.org",
+      "member": sections.find(s => s.title === "Team Members")?.content.map(member => ({
+        "@type": "Person",
+        "name": member.name,
+        "affiliation": member.affiliation
+      }))
+    };
+
+    const script = document.createElement('script');
+    script.type = 'application/ld+json';
+    script.text = JSON.stringify(organizationSchema);
+    document.head.appendChild(script);
+
+    return () => {
+      document.head.removeChild(script);
+    };
+  }, []);
 
   return (
     <div className="min-h-screen pt-20 pb-8 px-4">
@@ -254,6 +277,7 @@ export function AboutPage({ isDarkMode, isVibrant, t }: AboutPageProps) {
             transition-all duration-300
             z-10
           `}
+          aria-label="Scroll to top"
         >
           <ArrowUp className={`
             w-6 h-6
