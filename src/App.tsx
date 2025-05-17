@@ -63,11 +63,17 @@ function App() {
         window.dataLayer.push(args);
       }
   
-      // @ts-ignore – ensure gtag is globally available
+      // @ts-ignore
       window.gtag = gtag;
   
       gtag("js", new Date());
       gtag("config", "G-MWWWEBNPLXS");
+  
+      // 👇 Trigger a page view manually
+      gtag("event", "page_view", {
+        page_path: window.location.pathname,
+        page_title: document.title,
+      });
     };
   
     document.head.appendChild(script);
