@@ -52,18 +52,25 @@ function App() {
     console.log("Updated showBreakPage state:", showBreakPage);
   }, [showBreakPage]);
 
-    useEffect(() => {
+  useEffect(() => {
     const script = document.createElement("script");
     script.src = "https://www.googletagmanager.com/gtag/js?id=G-MWWWEBNPLXS";
     script.async = true;
+  
+    script.onload = () => {
+      window.dataLayer = window.dataLayer || [];
+      function gtag(...args: any[]) {
+        window.dataLayer.push(args);
+      }
+  
+      // @ts-ignore – ensure gtag is globally available
+      window.gtag = gtag;
+  
+      gtag("js", new Date());
+      gtag("config", "G-MWWWEBNPLXS");
+    };
+  
     document.head.appendChild(script);
-
-    window.dataLayer = window.dataLayer || [];
-    function gtag(...args: any[]) {
-      window.dataLayer.push(args);
-    }
-    gtag("js", new Date());
-    gtag("config", "G-MWWWEBNPLXS");
   }, []);
 
   useEffect(() => {
