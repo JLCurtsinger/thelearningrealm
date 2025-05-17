@@ -52,6 +52,20 @@ function App() {
     console.log("Updated showBreakPage state:", showBreakPage);
   }, [showBreakPage]);
 
+    useEffect(() => {
+    const script = document.createElement("script");
+    script.src = "https://www.googletagmanager.com/gtag/js?id=G-MWWWEBNPLXS";
+    script.async = true;
+    document.head.appendChild(script);
+
+    window.dataLayer = window.dataLayer || [];
+    function gtag(...args: any[]) {
+      window.dataLayer.push(args);
+    }
+    gtag("js", new Date());
+    gtag("config", "G-MWWWEBNPLXS");
+  }, []);
+
   useEffect(() => {
     const handleShowAuthModal = (event: CustomEvent) => {
       setShowAuthModal(true);
