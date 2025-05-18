@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 
 export const useAnalytics = () => {
   useEffect(() => {
-    const GA_MEASUREMENT_ID = 'G-MWWWEBNPLXS';
+    const GA_MEASUREMENT_ID = 'G-MWWEBNPLXS';
 
     // Inject the GA script into the <head>
     const script = document.createElement('script');
