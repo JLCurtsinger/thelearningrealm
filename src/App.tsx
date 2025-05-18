@@ -54,7 +54,7 @@ function App() {
 
   useEffect(() => {
     const script = document.createElement("script");
-    script.src = "https://www.googletagmanager.com/gtag/js?id=G-MWWWEBNPLXS";
+    script.src = "https://www.googletagmanager.com/gtag/js?id=G-MWWEBNPLXS";
     script.async = true;
   
     script.onload = () => {
@@ -67,7 +67,7 @@ function App() {
       window.gtag = gtag;
   
       gtag("js", new Date());
-      gtag("config", "G-MWWWEBNPLXS");
+      gtag("config", "G-MWWEBNPLXS");
   
       // 👇 Trigger a page view manually
       gtag("event", "page_view", {
