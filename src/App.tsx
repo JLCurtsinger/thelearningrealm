@@ -29,6 +29,7 @@ import {
 } from './utils/NavigationUtils';
 
 function App() {
+  useAnalytics();
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isVibrant, setIsVibrant] = useRainbowMode();
   const [language, setLanguage] = useLanguage();
