@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAnalytics } from './hooks/useAnalytics';
 import { AuthModal } from "./components/auth/AuthModal";
 import { AuthProvider } from "./contexts/AuthContext";
 import { GameAudioProvider } from './components/games/GameAudioContext';
@@ -51,33 +52,6 @@ function App() {
   useEffect(() => {
     console.log("Updated showBreakPage state:", showBreakPage);
   }, [showBreakPage]);
-
-  useEffect(() => {
-    const script = document.createElement("script");
-    script.src = "https://www.googletagmanager.com/gtag/js?id=G-MWWEBNPLXS";
-    script.async = true;
-  
-    script.onload = () => {
-      window.dataLayer = window.dataLayer || [];
-      function gtag(...args: any[]) {
-        window.dataLayer.push(args);
-      }
-  
-      // @ts-ignore
-      window.gtag = gtag;
-  
-      gtag("js", new Date());
-      gtag("config", "G-MWWEBNPLXS");
-  
-      // 👇 Trigger a page view manually
-      gtag("event", "page_view", {
-        page_path: window.location.pathname,
-        page_title: document.title,
-      });
-    };
-  
-    document.head.appendChild(script);
-  }, []);
 
   useEffect(() => {
     const handleShowAuthModal = (event: CustomEvent) => {
