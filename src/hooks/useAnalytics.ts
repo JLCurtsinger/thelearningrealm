@@ -19,6 +19,8 @@ export const useAnalytics = () => {
 
     // Initialize GA
     gtag('js', new Date());
-    gtag('config', GA_MEASUREMENT_ID);
+    gtag('config', GA_MEASUREMENT_ID, {
+      send_page_view: true,
+    });
   }, []);
 };
