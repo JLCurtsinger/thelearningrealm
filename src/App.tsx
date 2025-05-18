@@ -167,6 +167,12 @@ function App() {
         navigateToFAQ(resetAllPages, setActiveView, setShowFAQPage);
         break;
     }
+    if (window.gtag) {
+      window.gtag('event', 'page_view', {
+        page_path: `/${page}`,
+        page_title: `LessonLink - ${page.charAt(0).toUpperCase() + page.slice(1)}`,
+      });
+    }
     console.log('Current state after change:', {
       showBreakPage,
       showDashboard,
